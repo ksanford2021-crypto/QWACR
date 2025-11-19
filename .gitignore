@@ -1,0 +1,51 @@
+# ROS Workspace directories
+build/
+devel/
+install/
+logs/
+log/
+
+# ROS specific files
+*.pyc
+*.pyo
+*~
+.catkin_workspace
+.catkin_tools/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+*.egg
+
+# C/C++
+*.o
+*.a
+*.so
+*.out
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.log
+*.tmp
+*.bak
