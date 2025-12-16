@@ -1,0 +1,40 @@
+# Build and install directories
+build/
+install/
+log/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+.pytest_cache/
+.coverage
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ROS 2
+*.bag
+*.db3
+
+# Build artifacts
+*.o
+*.a
+*.so.*
+CMakeFiles/
+cmake_install.cmake
+Makefile
+CTestTestfile.cmake
+
+# Temporary files
+*.tmp
+*.bak

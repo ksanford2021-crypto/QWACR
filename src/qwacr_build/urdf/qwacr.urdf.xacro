@@ -1,0 +1,237 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="qwacr">
+  <!-- Arguments -->
+  <xacro:arg name="use_gazebo" default="false"/>
+  <xacro:arg name="serial_port" default="/tmp/ttyV0"/>
+  <xacro:arg name="baud_rate" default="115200"/>
+
+  <!-- Base -->
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 .1" rpy="0 0 0"/>
+      <geometry>
+        <box size=".45 .3 .2"/>
+      </geometry>
+      <material name="blue">
+        <color rgba="0 0 1 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 .1" rpy="0 0 0"/>
+      <geometry>
+        <box size=".45 .3 .2"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="25.0"/>
+      <inertia ixx="0.05" ixy="0.0" ixz="0.0" iyy="0.06" iyz="0.0" izz="0.07"/>
+    </inertial>
+  </link>
+
+  <gazebo reference="base_link">
+    <material>Gazebo/Blue</material>
+  </gazebo>
+
+  <!-- Front left wheel -->
+  <joint name="base_to_front_left_wheel" type="continuous">
+    <parent link="base_link"/>
+    <child link="front_left_wheel_link"/>
+    <origin xyz="0.18 0.19 -0.02" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit effort="6.2" velocity="104"/>
+    <dynamics damping=".0001" friction="0.001"/>
+  </joint>
+  <link name="front_left_wheel_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder radius="0.165" length="0.06"/>
+      </geometry>
+      <material name="red">
+        <color rgba="1 0 0 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder radius="0.165" length="0.06"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="1.0"/>
+      <inertia ixx="0.001" ixy="0.0" ixz="0.0" iyy="0.001" iyz="0.0" izz="0.001"/>
+    </inertial>
+  </link>
+
+  <gazebo reference="front_left_wheel_link">
+    <material>Gazebo/Red</material>
+  </gazebo>
+
+  <!-- Front right wheel -->
+  <joint name="base_to_front_right_wheel" type="continuous">
+    <parent link="base_link"/>
+    <child link="front_right_wheel_link"/>
+    <origin xyz="0.18 -0.19 -0.02" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit effort="6.2" velocity="104"/>
+    <dynamics damping=".0001" friction="0.001"/>
+  </joint>
+  <link name="front_right_wheel_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder radius="0.165" length="0.06"/>
+      </geometry>
+      <material name="green">
+        <color rgba="0 1 0 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder radius="0.165" length="0.06"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="1.0"/>
+      <inertia ixx="0.001" ixy="0.0" ixz="0.0" iyy="0.001" iyz="0.0" izz="0.001"/>
+    </inertial>
+  </link>
+
+  <gazebo reference="front_right_wheel_link">
+    <material>Gazebo/Green</material>
+  </gazebo>
+
+  <!-- Back left wheel -->
+  <joint name="base_to_back_left_wheel" type="continuous">
+    <parent link="base_link"/>
+    <child link="back_left_wheel_link"/>
+    <origin xyz="-0.18 0.19 -0.02" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit effort="6.2" velocity="104"/>
+    <dynamics damping=".0001" friction="0.001"/>
+  </joint>
+  <link name="back_left_wheel_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder radius="0.165" length="0.06"/>
+      </geometry>
+      <material name="yellow">
+        <color rgba="1 1 0 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder radius="0.165" length="0.06"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="3.0"/>
+      <inertia ixx="0.002" ixy="0.0" ixz="0.0" iyy="0.002" iyz="0.0" izz="0.002"/>
+    </inertial>
+  </link>
+
+  <gazebo reference="back_left_wheel_link">
+    <material>Gazebo/Yellow</material>
+  </gazebo>
+
+  <!-- Back right wheel -->
+  <joint name="base_to_back_right_wheel" type="continuous">
+    <parent link="base_link"/>
+    <child link="back_right_wheel_link"/>
+    <origin xyz="-0.18 -0.19 -0.02" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit effort="6.2" velocity="104"/>
+    <dynamics damping=".0001" friction="0.001"/>
+  </joint>
+  <link name="back_right_wheel_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder radius="0.165" length="0.06"/>
+      </geometry>
+      <material name="purple">
+        <color rgba="1 0 1 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder radius="0.165" length="0.06"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="3.0"/>
+      <inertia ixx="0.002" ixy="0.0" ixz="0.0" iyy="0.002" iyz="0.0" izz="0.002"/>
+    </inertial>
+  </link>
+
+  <gazebo reference="back_right_wheel_link">
+    <material>Gazebo/Purple</material>
+  </gazebo>
+
+  <!-- ros2_control: use hardware plugin with serial simulator for development -->
+  <xacro:unless value="$(arg use_gazebo)">
+    <ros2_control name="MegaDiffDriveHardware" type="system">
+      <hardware>
+        <plugin>mega_diff_drive_control/MegaDiffDriveHardware</plugin>
+        <param name="serial_port">$(arg serial_port)</param>
+        <param name="baud_rate">$(arg baud_rate)</param>
+      </hardware>
+      <joint name="base_to_front_left_wheel">
+        <command_interface name="velocity"/>
+        <state_interface name="velocity"/>
+        <state_interface name="position"/>
+      </joint>
+      <joint name="base_to_front_right_wheel">
+        <command_interface name="velocity"/>
+        <state_interface name="velocity"/>
+        <state_interface name="position"/>
+      </joint>
+      <joint name="base_to_back_left_wheel">
+        <command_interface name="velocity"/>
+        <state_interface name="velocity"/>
+        <state_interface name="position"/>
+      </joint>
+      <joint name="base_to_back_right_wheel">
+        <command_interface name="velocity"/>
+        <state_interface name="velocity"/>
+        <state_interface name="position"/>
+      </joint>
+    </ros2_control>
+  </xacro:unless>
+
+  <!-- Gazebo simulation mode: use hardware plugin via PTY simulator -->
+  <xacro:if value="$(arg use_gazebo)">
+    <ros2_control name="MegaDiffDriveHardware" type="system">
+      <hardware>
+        <plugin>mega_diff_drive_control/MegaDiffDriveHardware</plugin>
+        <param name="serial_port">$(arg serial_port)</param>
+        <param name="baud_rate">$(arg baud_rate)</param>
+      </hardware>
+      <joint name="base_to_front_left_wheel">
+        <command_interface name="velocity"/>
+        <state_interface name="velocity"/>
+        <state_interface name="position"/>
+      </joint>
+      <joint name="base_to_front_right_wheel">
+        <command_interface name="velocity"/>
+        <state_interface name="velocity"/>
+        <state_interface name="position"/>
+      </joint>
+      <joint name="base_to_back_left_wheel">
+        <command_interface name="velocity"/>
+        <state_interface name="velocity"/>
+        <state_interface name="position"/>
+      </joint>
+      <joint name="base_to_back_right_wheel">
+        <command_interface name="velocity"/>
+        <state_interface name="velocity"/>
+        <state_interface name="position"/>
+      </joint>
+    </ros2_control>
+  </xacro:if>
+
+</robot>

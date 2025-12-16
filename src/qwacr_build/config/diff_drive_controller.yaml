@@ -1,0 +1,47 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 30 # control loop frequency in Hz
+    switch_controller_timeout: 20000  # Switch timeout in milliseconds (20 seconds)
+
+    # Define which controller plugins to load
+    diff_cont:
+      type: diff_drive_controller/DiffDriveController
+    joint_broad:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+diff_cont:
+  ros__parameters:
+    # Kinematics and Joint Mapping 
+    wheel_separation: .38 # distance from left/right wheels in meters
+    wheel_radius: .165 # wheel radius in meters
+    # Map the URDF joints to the controller
+    left_wheel_names:
+      - base_to_front_left_wheel
+      - base_to_back_left_wheel
+    right_wheel_names:
+      - base_to_front_right_wheel
+      - base_to_back_right_wheel
+
+    enable_odom_tf: true
+    cmd_vel_timeout: 0.5
+    open_loop: true  # Use open-loop control (direct velocity commands)
+    position_feedback: false  # Don't use position feedback for PID
+    use_stamped_vel: false  # Ensure controller subscribes to geometry_msgs/Twist on /diff_cont/cmd_vel
+    
+    # Velocity limits for cmd_vel
+    linear.x.has_velocity_limits: true
+    linear.x.max_velocity: 2.0  # m/s
+    linear.x.min_velocity: -2.0  # m/s
+    linear.x.has_acceleration_limits: true
+    linear.x.max_acceleration: 5.0  # m/s²
+    linear.x.min_acceleration: -5.0  # m/s²
+    linear.x.max_deceleration: -5.0  # m/s²
+    linear.x.min_deceleration: -5.0  # m/s²
+    angular.z.has_velocity_limits: true
+    angular.z.max_velocity: 3.0  # rad/s
+    angular.z.min_velocity: -3.0  # rad/s
+    angular.z.has_acceleration_limits: true
+    angular.z.max_acceleration: 8.0  # rad/s²
+    angular.z.min_acceleration: -8.0  # rad/s²
+    angular.z.max_deceleration: -8.0  # rad/s²
+    angular.z.min_deceleration: -8.0  # rad/s²
