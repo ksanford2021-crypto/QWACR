@@ -324,6 +324,19 @@ namespace mega_diff_drive_control
         const rclcpp::Time & /*time*/,
         const rclcpp::Duration & /*period*/)
     {
+        // Debug: log the command vector to verify controller writes non-zero values
+        std::ostringstream debug_stream;
+        debug_stream << "hw_commands:";
+        for (size_t i = 0; i < hw_commands_.size(); ++i) {
+            debug_stream << (i == 0 ? " " : ", ") << hw_commands_[i];
+        }
+        static rclcpp::Clock steady_clock{RCL_STEADY_TIME};
+        static rclcpp::Logger logger = rclcpp::get_logger("MegaDiffDriveHardware");
+        RCLCPP_INFO_THROTTLE(logger,
+                     steady_clock,
+                     1000 /* ms */,
+                     "%s", debug_stream.str().c_str());
+
         std::ostringstream command_stream;
         for (size_t i = 0; i < hw_commands_.size(); ++i) {
             command_stream << hw_commands_[i];

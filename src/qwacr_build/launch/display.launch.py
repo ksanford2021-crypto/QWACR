@@ -130,6 +130,7 @@ def generate_launch_description():
         package='qwacr_build',
         executable='arduino_sim.py',
         output='screen',
+            env={'SERIAL_PORT': serial_port},
     )
 
     joint_broad_spawner = Node(
@@ -217,22 +218,11 @@ def generate_launch_description():
         output='screen',
     )
 
-    # Wait until the serial port exists and is openable before starting control node
-    # Use environment variable injection to avoid complex PythonExpression string building
+    # Wait until the serial port exists before starting control node
     wait_for_serial = ExecuteProcess(
         cmd=[
-            'python3', '-c',
-            'import os, sys, time; '\
-            'p = os.environ.get("SERIAL_PORT", ""); start = time.time(); '\
-            'timeout = 10.0; '\
-            'while time.time() - start < timeout: '\
-            '  try:\n' \
-            '    if p and os.path.exists(p): '\
-            '      fd = os.open(p, os.O_RDWR | os.O_NOCTTY); os.close(fd); sys.exit(0)\n' \
-            '  except Exception:\n' \
-            '    pass\n' \
-            '  time.sleep(0.2)\n' \
-            'sys.exit(1)'
+            'bash', '-c',
+            'for i in {1..50}; do test -e "$SERIAL_PORT" && exit 0; sleep 0.1; done; exit 1'
         ],
         additional_env={'SERIAL_PORT': serial_port},
         output='screen',

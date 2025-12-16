@@ -15,7 +15,8 @@ import errno
 import select
 import sys
 
-MASTER_SLAVE_SYMLINK = '/tmp/ttyV0'
+# Allow serial port to be specified via environment variable or use default
+MASTER_SLAVE_SYMLINK = os.environ.get('SERIAL_PORT', '/tmp/ttyV0')
 
 # PID parameters (tuned for simulated motors)
 KP = 2.0  # Proportional gain
