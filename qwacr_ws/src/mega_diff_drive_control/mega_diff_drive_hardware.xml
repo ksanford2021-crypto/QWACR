@@ -1,0 +1,5 @@
+<library path="mega_diff_drive_hardware">
+  <class name="mega_diff_drive_control/MegaDiffDriveHardware" type="mega_diff_drive_control::MegaDiffDriveHardware" base_class_type="hardware_interface::SystemInterface">
+    <description>MegaDiffDriveHardware plugin</description>
+  </class>
+</library>

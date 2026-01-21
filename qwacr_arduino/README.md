@@ -1,6 +1,14 @@
 ﻿# QWACR Arduino Motor Control
 
-Complete Arduino firmware for 4-wheel robot with independent PID-based motor velocity control and reliable serial communication with Raspberry Pi (ROS 2).
+Complete Arduino firmware for 4-wheel differential drive robot with independent PID-based motor velocity control and **request/response odometry protocol**.
+
+## Key Features
+
+✅ **4-Motor Differential Drive** - Smooth PID velocity tracking  
+✅ **Full Quadrature Encoding** - 3200 CPR per motor with 4x decoding  
+✅ **COBS Serial Protocol** - Reliable packet framing (115200 baud)  
+✅ **Request/Response Odometry** - On-demand encoder queries, non-blocking  
+✅ **Safety Features** - 2-second timeout, sleep control, velocity limits  
 
 ## Hardware Configuration
 
@@ -15,14 +23,14 @@ Complete Arduino firmware for 4-wheel robot with independent PID-based motor vel
 - Left motors (FL + BL) share the same velocity setpoint
 - Right motors (FR + BR) share the same velocity setpoint  
 - Each motor has **independent PID controller** for accurate tracking
-- Setpoints calculated by ROS 2 diff_drive_controller
+- This enables differential steering (left faster = turn left)
 
 ### Motor Specifications
 - **Type:** Brushed DC motors with quadrature encoders
-- **Nominal Speed:** 90 RPM (9.42 rad/s at output shaft)
+- **Nominal Speed:** 90 RPM (9.42 rad/s)
 - **Gear Ratio:** 100:1
-- **Encoder Resolution:** 64 CPR (counts per revolution) at input shaft
-- **Effective Resolution:** 1600 counts per output shaft revolution (single-edge quadrature detection)
+- **Encoder:** 64 CPR (input shaft)
+- **Effective Resolution:** 3200 counts per output shaft revolution (full quadrature, 4x decoding)
 
 ## Hardware Setup
 

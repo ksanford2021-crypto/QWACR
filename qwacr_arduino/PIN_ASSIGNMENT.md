@@ -25,6 +25,17 @@ This project uses:
 
 ✅ **Result:** 2 spare interrupt pins available for future sensors/encoders
 
+### Motor Driver Sleep/Enable Pins (4 pins)
+
+| Function | Pin | Mode | Purpose |
+|----------|-----|------|---------|
+| Driver 1 M1SLP (FL) | 28 | Digital Output | Sleep control for FL motor (HIGH=awake, LOW=sleep) |
+| Driver 1 M2SLP (BL) | 29 | Digital Output | Sleep control for BL motor (HIGH=awake, LOW=sleep) |
+| Driver 2 M1SLP (FR) | 30 | Digital Output | Sleep control for FR motor (HIGH=awake, LOW=sleep) |
+| Driver 2 M2SLP (BR) | 31 | Digital Output | Sleep control for BR motor (HIGH=awake, LOW=sleep) |
+
+These pins control the Pololu Dual G2 motor driver sleep inputs (M1SLP/M2SLP on each board). Holding them LOW keeps the drivers disabled until the first velocity command is received.
+
 ## Complete Pin Assignment
 
 ### Motor Control Pins (8 pins)
@@ -67,10 +78,10 @@ This project uses:
 | Serial RX | 0 | Serial Input | Receive from Raspberry Pi |
 | Serial TX | 1 | Serial Output | Send to Raspberry Pi |
 
-### Unassigned Pins (37 available for expansion)
+### Unassigned Pins (35 available for expansion)
 
 - Analog: A0-A15 (16 pins)
-- Digital: 4, 13-17, 22-23, 28-53 (many pins)
+- Digital: 4, 13-17, 19, 21-23, 29, 31-53 (19 pins)
 
 ## Why This Configuration?
 
