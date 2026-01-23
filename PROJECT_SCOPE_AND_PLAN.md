@@ -1,7 +1,8 @@
 # QWACR: Autonomous Ground Robot - Complete Project Scope & Execution Plan
 
 **Project Date:** January 15, 2026  
-**Status:** Active Development - Hardware Integration Phase
+**Last Updated:** January 23, 2026  
+**Status:** Active Development - Phase 2 DONE; GPS + LiDAR Integration NEXT (Weeks 3-4)
 
 ---
 
@@ -9,84 +10,125 @@
 
 Design and deploy an **autonomous ground robot** capable of:
 - **Autonomous Navigation:** GPS-guided point-to-point navigation across large outdoor areas
-- **Global Mapping:** Build a GPS-referenced global map of the operating area
-- **Real-time Localization:** Use LiDAR SLAM for local obstacle avoidance and fine positioning
+- **Global Mapping:** Use a GPS-referenced global map of the operating area (fixed, reused)
+- **Real-time Localization:** Localize against the fixed global map using GPS + LiDAR localization + IMU + wheel odometry fusion (EKF/UKF)
 - **Remote Teleoperation:** Support live video feed and manual control via WiFi/LoRa networks
 - **Docking Station Integration:** Autonomous return to charging dock and loiter at target locations
 - **Obstacle Avoidance:** Dynamic path replanning around detected obstacles
-- **Sensor Fusion:** Integrate GPS, LiDAR IMU, wheel odometry for robust localization
+- **Sensor Fusion:** Integrate GPS, LiDAR localization, IMU, and wheel odometry via EKF/UKF for robust localization
 
 ---
 
 ## 📋 PROJECT SCOPE
 
-### Phase 1: Hardware Foundation (Current - Week 1-2)
+### Phase 1: Hardware Foundation ✅ COMPLETED (Week 1-2)
 **Objective:** Get the robot moving with reliable motor control and feedback
 
 **Components:**
 - Arduino Mega 2560 with 4-motor differential drive control
 - 2× Pololu Dual G2 Motor Drivers
 - 4× Motors with integrated 1600 PPR encoders
-- Wheel odometry via quadrature encoder counting
-- Serial communication (115200 baud)
+- Wheel odometry via 2× edge counting (channel A edges + channel B direction, 3200 CPR effective)
+- Serial communication (115200 baud, COBS encoding)
 
 **Deliverables:**
-- ✅ Arduino firmware complete (binary PacketSerial protocol)
-- ✅ ROS 2 hardware interface complete (binary protocol support)
-- ⏳ **NEXT:** Hardware testing and validation
+- ✅ Arduino firmware complete (COBS PacketSerial protocol)
+- ✅ 4-motor differential drive control operational
+- ✅ PID velocity control tuned (Kp=7.0, Ki=0.6, Kd=0.15)
+- ✅ Sleep pin control (prevents startup motion)
+- ✅ All motors tested: forward/reverse/turning functional
+- ✅ Encoder feedback integrated
+- ✅ Hardware validation complete
 
 ---
 
-### Phase 2: Sensor Integration (Week 2-3)
-**Objective:** Add perception - GPS, LiDAR, IMU
+### Phase 2: ROS 2 Hardware Interface & Odometry (Week 2-3) ✅ COMPLETED
+**Objective:** Integrate motor control with ROS 2 and provide encoder feedback via request/response pattern
 
-**Sensors:**
-- **GPS:** SparkFun Quadband GNSS RTK with Heading (LG580P)
-  - **RTK Accuracy:** ±2-5 cm horizontal, ±5-10 cm vertical (with base station)
-  - **Standalone Accuracy:** ±1 meter horizontal, ±2 meters vertical
-  - **Heading Output:** Built-in, ±0.5° accuracy (dual-antenna)
-  - Quadband: GPS/GLONASS/Galileo/BeiDou support
-  - Provides absolute reference for navigation and precise alignment
+**Architecture:**
+- **Arduino Firmware:** Request/response feedback system
+  - Command packet: [0x01][left_vel][right_vel] - set motor velocities
+  - Request packet: [0x02] - request encoder data
+  - Feedback packet: [0x10][enc_fl][enc_bl][enc_fr][enc_br][vel_fl][vel_bl][vel_fr][vel_br]
+  - Non-blocking: ROS2 pulls data on-demand, no buffer interference
   
-- **LiDAR:** SLAMTEC Aurora
-  - 360° scanning with improved range and resolution
-  - Real-time obstacle detection and SLAM
-  - Provides local costmap for navigation
-  
-- **IMU (in LiDAR):** Extract orientation and acceleration
-  - Complements wheel odometry
-  - Detects slope and angular velocity
+- **ROS 2 Odometry Node:** Request encoder data at configurable rate (10-50Hz)
+  - Query Arduino for current encoder counts and velocities
+  - Convert counts to distance traveled
+  - Compute odometry (position, velocity, heading)
+  - Publish: nav_msgs/Odometry, tf/TransformStamped
+  - Rate: Limited by serial latency (~10Hz typical)
 
 **Deliverables:**
-- ROS 2 drivers for GPS (NavSatFix), LiDAR (LaserScan), IMU (Imu)
-- Sensor fusion node (GPS + Odometry + IMU)
-- Local costmap from LiDAR
-- Static map frames for TF
+- ✅ Arduino firmware with request/response protocol
+- ✅ ROS 2 hardware interface (mega_diff_drive_control) with odometry + TF via DiffDriveController
+- ✅ Twist→TwistStamped bridge (executable) and robust launch scripts
+- ✅ Teleop keyboard driving hardware
+- EKF/UKF localization node fusing wheel odometry, IMU, GPS, and LiDAR-based localization (next)
+- Costmap generation for obstacle awareness (static global map + local obstacle layer) (next)
+- Launch files for hardware interface (done)
+- Test utilities for serial communication (done)
+
+**Note:** Odometry will be discrete (~10Hz) rather than continuous. Localization accuracy comes from fusion (GPS + LiDAR localization + IMU + odometry) rather than SLAM.
+
+---
+
+### Phase 2b: Sensor Integration - GPS + LiDAR (Week 3-4) [STARTING NOW]
+**Objective:** Add GPS + LiDAR perception for global navigation and obstacle avoidance
+
+**Sensors (Decision: GPS + LiDAR):**
+- **GPS (HIGH PRIORITY):** u-blox M8N or SparkFun Quadband GNSS RTK
+  - **Standalone:** ±1-5 m horizontal accuracy (sufficient for waypoint nav)
+  - **RTK (optional):** ±2-5 cm with base station
+  - **Output:** NMEA/UBX UART @ 9600 baud
+  - **Use case:** Waypoint missions, global reference frame, return-to-dock
+  
+- **LiDAR (HIGH PRIORITY):** SLAMTEC RPLIDAR A1M8 or Aurora
+  - **Range:** 12 m effective, 360° scanning
+  - **Rate:** 10 Hz (A1M8) or faster (Aurora)
+  - **Use case:** Obstacle detection, local costmap, scan-to-map localization
+  - **Setup:** USB or UART, ROS driver (rplidar_ros)
+  
+- **IMU (DEFER):** Can use IMU from LiDAR firmware or separate breakout later
+  - Currently: rely on wheel odometry + GPS heading
+  - Add later if drift becomes problematic
+
+**Deliverables (Week 3-4):**
+- ✅ [WK 3] Hardware bring-up (GPS UART, LiDAR USB, TF setup)
+- ✅ [WK 3] ROS 2 GPS driver (gps_common, NavSatFix publisher)
+- ✅ [WK 3] ROS 2 LiDAR driver (rplidar_ros, LaserScan publisher, TF broadcaster)
+- ✅ [WK 3] GPS→ENU converter (lat/lon to local meters)
+- ✅ [WK 3] Sensor fusion node (GPS + wheel odom for global pose)
+- ✅ [WK 3] Local costmap from LiDAR scans (costmap_2d)
+- ✅ [WK 4] Integration testing (GPS fix rate, LiDAR range, fusion accuracy)
+- ✅ [WK 4] Bag recording for nav2 tuning
 
 ---
 
 ### Phase 3: Mapping & Localization (Week 3-4)
-**Objective:** Build global map and implement dual-layer localization
+**Objective:** Localize against a fixed GPS-referenced global map; maintain local obstacle costmap
 
-**GPS-Based Global Mapping:**
-- Store waypoints with GPS coordinates
-- Build "breadcrumb map" of previously visited areas
-- Mark obstacles detected by LiDAR in global frame
+**Global Map (Fixed):**
+- Pre-built GPS-referenced map reused on every mission
+- Store waypoints and known obstacle regions in global coordinates
 - 2D occupancy grid at GPS resolution (~1m cells)
-- Maintain local SLAM costmap (10m radius around robot)
 
-**Localization Strategy:**
-- **Global:** GPS provides baseline position (1-5m accuracy)
-- **Local:** LiDAR SLAM refines position within local area
-- **Odometry:** Wheel encoders for fine motion between sensor updates
-- **Sensor Fusion:** EKF/UKF to combine all three
+**Localization Strategy (No SLAM):**
+- **Global:** GPS provides baseline pose
+- **Refinement:** LiDAR localization (scan-to-map) against the fixed global map
+- **Dead-reckoning:** Wheel odometry (2× edge counting, 3200 CPR effective) + IMU
+- **Fusion:** EKF/UKF combining GPS + LiDAR localization + IMU + odometry
+
+**Costmap:**
+- Local obstacle layer from LiDAR for avoidance
+- Static layer from the fixed global map
 
 **Deliverables:**
-- Global map publisher (nav_msgs/OccupancyGrid)
-- Local SLAM costmap
-- Localization node (EKF with GPS + LiDAR + Odometry)
+- Global map publisher (nav_msgs/OccupancyGrid) from the fixed map
+- Local obstacle costmap (no SLAM) for navigation
+- Localization node (EKF/UKF) fusing GPS + LiDAR localization + IMU + odometry
 - TF broadcaster for robot position in global frame
-- RViz visualization of global + local maps
+- RViz visualization of global + local costmaps
 
 ---
 
@@ -800,7 +842,7 @@ Loop rate: 50 Hz (20ms period)
 Motor drivers: Pololu Dual G2
 Max current: 13A per channel
 PWM frequency: 20 kHz
-Voltage: 12V nominal
+Voltage: 24V nominal
 ```
 
 ### Sensor Specifications
@@ -831,19 +873,24 @@ IMU (in LiDAR):
 ```
 Raspberry Pi 4B: 5W (idle) - 15W (full load)
 Arduino Mega: 0.5W
-Motor drivers: 2W (idle) - 20W (peak)
-Motors: 5W (no load) - 50W (full load, all 4)
+Motor drivers: 2W (idle) - 30W (switching losses)
+Motors (120 RPM @ 4.9Nm each):
+  - Nominal: 2.6A per motor @ 24V = 62.4W per motor
+  - 4 motors total: ~250W at full load
+  - No-load: ~20W (all 4)
 LiDAR: 3W
 GPS: 0.5W
 Camera: 2W
 LoRa: 1W (standby) - 5W (transmit)
 
-Total idle: ~20W
-Total under load: ~80-100W
+Total idle: ~30W
+Total under nominal load: ~300W (all motors at 120 RPM)
 
-Battery capacity: ~5000 mAh @ 12V = 60 Wh
-Expected runtime: 0.6-1.2 hours under continuous load
-With 50% duty cycle: 1.2-2.4 hours
+Battery capacity: TBD (likely 24V LiPo, suggest 20Ah minimum)
+  - 20Ah @ 24V = 480Wh
+  - Runtime at full load: ~1.6 hours
+  - Runtime at 50% duty cycle: ~3 hours
+  - Runtime at idle/cruise: ~6-8 hours
 ```
 
 ---
