@@ -83,11 +83,12 @@ Design and deploy an **autonomous ground robot** capable of:
   - **Output:** NMEA/UBX UART @ 9600 baud
   - **Use case:** Waypoint missions, global reference frame, return-to-dock
   
-- **LiDAR (HIGH PRIORITY):** SLAMTEC RPLIDAR A1M8 or Aurora
-  - **Range:** 12 m effective, 360° scanning
-  - **Rate:** 10 Hz (A1M8) or faster (Aurora)
-  - **Use case:** Obstacle detection, local costmap, scan-to-map localization
-  - **Setup:** USB or UART, ROS driver (rplidar_ros)
+- **LiDAR (HIGH PRIORITY):** SLAMTEC Aurora
+  - **Range:** 20+ m effective, 360° scanning
+  - **Rate:** 10-20 Hz (configurable)
+  - **Resolution:** ~0.5° (fine-grained obstacle detection)
+  - **Use case:** Obstacle avoidance, local costmap, scan-to-map localization (SLAM-ready)
+  - **Setup:** USB, ROS driver (rplidar_ros or SLAMTEC SDK)
   
 - **IMU (DEFER):** Can use IMU from LiDAR firmware or separate breakout later
   - Currently: rely on wheel odometry + GPS heading

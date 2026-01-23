@@ -82,7 +82,7 @@ ROS2 hardware interface is operational with encoder feedback and odometry publis
 **Week 3 (Immediate):**
 1. **Hardware Setup**
    - [ ] Connect GPS UART to Raspberry Pi (9600 baud)
-   - [ ] Connect LiDAR USB (or UART if RPLIDAR A1M8)
+   - [ ] Connect SLAMTEC Aurora LiDAR USB
    - [ ] Verify both devices appear in `/dev/` and ROS topic latency
 
 2. **GPS Integration**
@@ -91,9 +91,9 @@ ROS2 hardware interface is operational with encoder feedback and odometry publis
    - [ ] Record sample GPS data; verify fix quality and accuracy
    - [ ] Build GPS→ENU converter (lat/lon → meters in local frame)
 
-3. **LiDAR Integration**
-   - [ ] Install/verify `rplidar_ros` driver
-   - [ ] Publish LaserScan on `/scan` topic @ ~10 Hz
+3. **LiDAR Integration (Aurora)**
+   - [ ] Install/verify `rplidar_ros` driver (or SLAMTEC SDK)
+   - [ ] Publish LaserScan on `/scan` topic @ 10-20 Hz
    - [ ] Add TF broadcaster for `/base_link` → `/laser_frame`
    - [ ] Record 10+ scans; visualize in RViz
 
