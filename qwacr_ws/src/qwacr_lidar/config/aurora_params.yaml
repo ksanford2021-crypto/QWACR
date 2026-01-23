@@ -1,0 +1,24 @@
+# SLAMTEC Aurora LiDAR Configuration
+# Range: 20m, Scan Rate: 10-20 Hz, Angular Resolution: 0.5°
+
+/**:
+  ros__parameters:
+    # Serial port (Aurora typically uses /dev/ttyUSB0 or /dev/ttyUSB1)
+    serial_port: /dev/ttyUSB1
+    serial_baudrate: 256000  # Aurora default baud rate
+    
+    # Frame configuration
+    frame_id: laser_frame
+    inverted: false
+    angle_compensate: true
+    
+    # Scan parameters
+    scan_frequency: 10.0  # Hz (Aurora supports 10-20 Hz)
+    
+    # Range limits (Aurora: 0.15m - 20m)
+    range_min: 0.15
+    range_max: 20.0
+    
+    # Scan mode for Aurora (check Aurora datasheet for mode ID)
+    # Mode 0: Standard, Mode 1: Express, Mode 2: Boost (if supported)
+    scan_mode: Standard

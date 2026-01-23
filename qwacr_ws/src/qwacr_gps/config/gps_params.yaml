@@ -1,0 +1,17 @@
+/**:
+  ros__parameters:
+    # Serial port configuration
+    serial_port: "/dev/ttyUSB0"
+    baud_rate: 9600
+    
+    # Frame ID for published messages
+    frame_id: "gps"
+    
+    # ENU conversion settings
+    publish_enu: true
+    publish_heading: true
+    origin_lat: 0.0  # Will auto-set on first fix if 0.0
+    origin_lon: 0.0  # Will auto-set on first fix if 0.0
+    
+    # Publishing rate (Hz)
+    publish_rate: 10.0

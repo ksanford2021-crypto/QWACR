@@ -1,0 +1,32 @@
+# Basic RViz config for Aurora LiDAR visualization
+# This will be auto-generated or can be saved from RViz
+
+Panels:
+  - Class: rviz_common/Displays
+  - Class: rviz_common/Views
+
+Visualization Manager:
+  Displays:
+    - Class: rviz_default_plugins/Grid
+      Name: Grid
+      
+    - Class: rviz_default_plugins/LaserScan
+      Name: Aurora Scan
+      Topic: /scan
+      Size: 0.05
+      Color: 255; 0; 0
+      
+    - Class: rviz_default_plugins/TF
+      Name: TF
+      
+  Global Options:
+    Fixed Frame: base_link
+    
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 5.0
+      Focal Point:
+        X: 0
+        Y: 0
+        Z: 0

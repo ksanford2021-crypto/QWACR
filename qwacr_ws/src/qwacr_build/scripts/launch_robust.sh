@@ -8,7 +8,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SERIAL_PORT="${SERIAL_PORT:-/dev/ttyACM0}"
 USE_RVIZ="${USE_RVIZ:-false}"
 
-echo "========================================" echo "QWACR Robust Launch Script"
+echo "========================================"
+echo "QWACR Robust Launch Script"
 echo "========================================"
 echo "Serial Port: $SERIAL_PORT"
 echo "RViz: $USE_RVIZ"
@@ -17,7 +18,7 @@ echo ""
 # Step 1: Prepare serial port
 echo "[1/3] Preparing serial port..."
 if [ -x "$SCRIPT_DIR/prepare_serial.sh" ]; then
-    "$SCRIPT_DIR/prepare_serial.sh" "$SERIAL_PORT"
+    "$SCRIPT_DIR/prepare_serial.sh" "$SERIAL_PORT" || echo "⚠ Serial preparation failed (non-critical), continuing..."
 else
     echo "⚠ Warning: prepare_serial.sh not found, skipping preparation"
 fi
