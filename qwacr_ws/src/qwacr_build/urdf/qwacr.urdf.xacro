@@ -172,6 +172,109 @@
     <material>Gazebo/Purple</material>
   </gazebo>
 
+  <!-- Sensor Tower (35cm tall) -->
+  <link name="sensor_tower">
+    <visual>
+      <origin xyz="0 0 0.175" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.025" length="0.35"/>
+      </geometry>
+      <material name="silver">
+        <color rgba="0.75 0.75 0.75 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.175" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.025" length="0.35"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.2"/>
+      <inertia ixx="0.0001" ixy="0.0" ixz="0.0" iyy="0.0001" iyz="0.0" izz="0.00005"/>
+    </inertial>
+  </link>
+
+  <joint name="base_to_sensor_tower" type="fixed">
+    <parent link="base_link"/>
+    <child link="sensor_tower"/>
+    <origin xyz="0.0 0.0 0.1" rpy="0 0 0"/>
+  </joint>
+
+  <!-- GPS Module (LG580P board at base level) -->
+  <link name="gps_module">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.08 0.06 0.02"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0 0 0 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.08 0.06 0.02"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.15"/>
+      <inertia ixx="0.00002" ixy="0.0" ixz="0.0" iyy="0.00003" iyz="0.0" izz="0.00002"/>
+    </inertial>
+  </link>
+
+  <joint name="base_to_gps_module" type="fixed">
+    <parent link="base_link"/>
+    <child link="gps_module"/>
+    <origin xyz="-0.1 0.0 0.11" rpy="0 0 0"/>
+  </joint>
+
+  <!-- GPS Reference Frame (antenna midpoint at tower top) -->
+  <!-- Dual antennas at ±10cm Y, midpoint defines position measurement -->
+  <!-- Frame for GPS driver to publish position and heading -->
+  <link name="gps_link">
+    <inertial>
+      <mass value="0.001"/>
+      <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.000001" iyz="0.0" izz="0.000001"/>
+    </inertial>
+  </link>
+
+  <joint name="tower_to_gps" type="fixed">
+    <parent link="sensor_tower"/>
+    <child link="gps_link"/>
+    <origin xyz="0.0 0.0 0.35" rpy="0 0 0"/>
+  </joint>
+
+  <!-- LiDAR Sensor Link (SLAMTEC Aurora, mounted at top of tower) -->
+  <link name="laser_frame">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.04" length="0.025"/>
+      </geometry>
+      <material name="darkgrey">
+        <color rgba="0.2 0.2 0.2 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.04" length="0.025"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.225"/>
+      <inertia ixx="0.0001" ixy="0.0" ixz="0.0" iyy="0.0001" iyz="0.0" izz="0.0001"/>
+    </inertial>
+  </link>
+
+  <joint name="tower_to_laser" type="fixed">
+    <parent link="sensor_tower"/>
+    <child link="laser_frame"/>
+    <origin xyz="0.0 0.0 0.35" rpy="0 0 0"/>
+  </joint>
+
   <!-- ros2_control: use hardware plugin with serial simulator for development -->
   <xacro:unless value="$(arg use_gazebo)">
     <ros2_control name="MegaDiffDriveHardware" type="system">
