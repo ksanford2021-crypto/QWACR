@@ -1,8 +1,8 @@
 # QWACR: Autonomous Ground Robot - Complete Project Scope & Execution Plan
 
 **Project Date:** January 15, 2026  
-**Last Updated:** January 23, 2026  
-**Status:** Active Development - Phase 2 DONE; GPS + LiDAR Integration NEXT (Weeks 3-4)
+**Last Updated:** January 28, 2026  
+**Status:** Active Development - Phase 3 COMPLETE; Phase 4 (Navigation Stack) COMPLETE; Ready for Hardware Integration Testing
 
 ---
 
@@ -73,91 +73,139 @@ Design and deploy an **autonomous ground robot** capable of:
 
 ---
 
-### Phase 2b: Sensor Integration - GPS + LiDAR (Week 3-4) [STARTING NOW]
+### Phase 2b: Sensor Integration - GPS + LiDAR (Week 3-4) ✅ COMPLETED
 **Objective:** Add GPS + LiDAR perception for global navigation and obstacle avoidance
 
-**Sensors (Decision: GPS + LiDAR):**
-- **GPS (HIGH PRIORITY):** u-blox M8N or SparkFun Quadband GNSS RTK
-  - **Standalone:** ±1-5 m horizontal accuracy (sufficient for waypoint nav)
-  - **RTK (optional):** ±2-5 cm with base station
-  - **Output:** NMEA/UBX UART @ 9600 baud
-  - **Use case:** Waypoint missions, global reference frame, return-to-dock
-  
-- **LiDAR (HIGH PRIORITY):** SLAMTEC Aurora
-  - **Range:** 20+ m effective, 360° scanning
-  - **Rate:** 10-20 Hz (configurable)
-  - **Resolution:** ~0.5° (fine-grained obstacle detection)
-  - **Use case:** Obstacle avoidance, local costmap, scan-to-map localization (SLAM-ready)
-  - **Setup:** USB, ROS driver (rplidar_ros or SLAMTEC SDK)
-  
-- **IMU (DEFER):** Can use IMU from LiDAR firmware or separate breakout later
-  - Currently: rely on wheel odometry + GPS heading
-  - Add later if drift becomes problematic
+**Status:**
+- LIDAR SDK is publishing large quantities of useful data
+- GPS module is working and providing data
+- Both sensors are integrated and verified in ROS 2
 
 **Deliverables (Week 3-4):**
-- ✅ [WK 3] Hardware bring-up (GPS UART, LiDAR USB, TF setup)
-- ✅ [WK 3] ROS 2 GPS driver (gps_common, NavSatFix publisher)
-- ✅ [WK 3] ROS 2 LiDAR driver (rplidar_ros, LaserScan publisher, TF broadcaster)
-- ✅ [WK 3] GPS→ENU converter (lat/lon to local meters)
-- ✅ [WK 3] Sensor fusion node (GPS + wheel odom for global pose)
-- ✅ [WK 3] Local costmap from LiDAR scans (costmap_2d)
-- ✅ [WK 4] Integration testing (GPS fix rate, LiDAR range, fusion accuracy)
-- ✅ [WK 4] Bag recording for nav2 tuning
+- ✅ Hardware bring-up (GPS UART, LiDAR USB, TF setup)
+- ✅ ROS 2 GPS driver (gps_common, NavSatFix publisher)
+- ✅ ROS 2 LiDAR driver (rplidar_ros, LaserScan publisher, TF broadcaster)
+- ✅ GPS→ENU converter (lat/lon to local meters)
+- ✅ Sensor fusion node (GPS + wheel odom for global pose)
+- ✅ Local costmap from LiDAR scans (costmap_2d)
+- ✅ Integration testing (GPS fix rate, LiDAR range, fusion accuracy)
+- ✅ Bag recording for nav2 tuning
 
+**Next:**
 ---
 
-### Phase 3: Mapping & Localization (Week 3-4)
-**Objective:** Localize against a fixed GPS-referenced global map; maintain local obstacle costmap
+### Phase 3: Mapping & Localization (Week 3-4) ✅ COMPLETED
+**Objective:** Localize using GPS, Aurora SLAM, IMU, and wheel odometry fusion
 
-**Global Map (Fixed):**
-- Pre-built GPS-referenced map reused on every mission
-- Store waypoints and known obstacle regions in global coordinates
-- 2D occupancy grid at GPS resolution (~1m cells)
+**Sensor Integration:**
+- ✅ Aurora SLAM SDK integrated (network-connected LiDAR/visual/inertial SLAM sensor)
+- ✅ RTK GPS with dual-antenna heading integrated
+- ✅ GPS driver enhanced with velocity extraction from GPRMC sentences
+- ✅ GPS publishes Odometry messages with position, velocity, and heading
 
-**Localization Strategy (No SLAM):**
-- **Global:** GPS provides baseline pose
-- **Refinement:** LiDAR localization (scan-to-map) against the fixed global map
-- **Dead-reckoning:** Wheel odometry (2× edge counting, 3200 CPR effective) + IMU
-- **Fusion:** EKF/UKF combining GPS + LiDAR localization + IMU + odometry
-
-**Costmap:**
-- Local obstacle layer from LiDAR for avoidance
-- Static layer from the fixed global map
+**Localization Strategy:**
+- ✅ Dual EKF configuration created:
+  - **Local EKF (odom frame):** Fuses wheel odometry + Aurora SLAM odometry + Aurora IMU
+  - **Global EKF (map frame):** Adds RTK GPS with position, velocity, and heading
+- ✅ robot_localization package configured with detailed parameter documentation
+- ✅ All sensor topics mapped and covariances tuned
 
 **Deliverables:**
-- Global map publisher (nav_msgs/OccupancyGrid) from the fixed map
-- Local obstacle costmap (no SLAM) for navigation
-- Localization node (EKF/UKF) fusing GPS + LiDAR localization + IMU + odometry
-- TF broadcaster for robot position in global frame
-- RViz visualization of global + local costmaps
+- ✅ robot_localization EKF configuration files (ekf_local_global.yaml)
+- ✅ EKF launch file for dual-filter setup
+- ✅ GPS driver with velocity and heading integration
+- ✅ Aurora SLAM sensor interface (slamware_ros_sdk)
+- ✅ REP-105 compliant frame structure (map→odom→base_link)
 
 ---
 
-### Phase 4: Navigation & Path Planning (Week 4-5)
-**Objective:** Implement autonomous navigation with obstacle avoidance
+### Phase 4: Navigation & Path Planning (Week 4-5) ✅ COMPLETED
+**Objective:** Implement autonomous navigation with Nav2 stack
 
 **Navigation Stack:**
-- **Global Planner:** GPS waypoint navigation using A* on global costmap
-- **Local Planner:** Dynamic Window Approach (DWA) for obstacle avoidance
-- **Path Execution:** Follow trajectory while respecting motor limits
-- **Behavior Tree:** Decision logic for mission states (navigate, loiter, return_home)
+- ✅ Complete Nav2 configuration created (qwacr_navigation package)
+- ✅ Local costmap: 10m×10m rolling window, 5cm resolution, obstacle detection from /scan
+- ✅ Global costmap: map frame, 10cm resolution, static + obstacle layers
+- ✅ DWB local controller configured (max 0.5m/s linear, 1.0rad/s angular)
+- ✅ NavFn global planner configured
+- ✅ Behavior tree navigator with recovery behaviors
+- ✅ Docking server configured for charging station integration
+
+**GPS Waypoint System:**
+- ✅ GPS waypoint follower node created (converts lat/lon to map frame)
+- ✅ JSON waypoint file format defined
+- ✅ Integration with Nav2 action server (NavigateThroughPoses)
 
 **Key Features:**
-- Waypoint-based mission (GPS coordinates)
-- Re-planning when obstacles detected
-- Smooth acceleration/deceleration curves
-- Timeout protection (return to dock if GPS lost >30s)
+- ✅ Waypoint-based mission planning (GPS coordinates)
+- ✅ Outdoor-optimized parameters (large operating area)
+- ✅ Collision monitoring and velocity smoothing
+- ✅ Multiple launch configurations (with/without hardware)
 
 **Deliverables:**
-- Global planner (nav2_planner or custom)
-- Local planner (DWA or TEB)
-- Behavior tree for mission execution
-- Waypoint manager (load/save GPS missions)
-- Safety monitoring node
+- ✅ qwacr_navigation package with complete Nav2 configs
+- ✅ GPS waypoint follower Python node
+- ✅ navigation_with_robot.launch.py (full system integration)
+- ✅ nav2_test.launch.py (testing without hardware)
+- ✅ RViz launch file with Nav2 visualization
+- ✅ Example waypoint JSON file
+- ✅ Nav2 params: controller, planner, behavior, costmaps, docking
+
+**Verification:**
+- ✅ Nav2 stack launches without errors
+- ✅ RViz interface fully functional
+- ✅ BT navigator configured successfully
+- ✅ All Nav2 nodes running and ready for sensor data
 
 ---
 
-### Phase 5: Communication & Remote Control (Week 5-6)
+### Phase 5: Hardware Integration & Testing (Week 5-6) 🔄 NEXT
+**Objective:** Integrate all sensors and validate complete navigation system
+
+**Integration Steps:**
+1. Aurora SLAM sensor connection and topic verification
+2. GPS driver launch and data quality checks
+3. EKF nodes launch and transform tree validation
+4. Motor control integration with Nav2 cmd_vel
+5. Full system launch with all components
+
+**Testing Phases:**
+- Basic sensor data validation (topics, rates, data quality)
+- Transform tree verification (map→odom→base_link)
+- Costmap population with real scan data
+- Short-range navigation goals (5-20m)
+- GPS waypoint accuracy testing
+- Long-range navigation (up to 800m)
+
+**Deliverables:**
+- Hardware testing scripts for sensor validation
+- System integration launch files
+- Test procedures and checklists
+- Performance benchmarks and tuning data
+- Issue tracker and resolution log
+
+---
+
+### Phase 6: Behavior Tree Customization (Week 6)
+**Objective:** Create custom behavior tree for outdoor GPS navigation
+
+**Custom BT Requirements:**
+- GPS signal quality monitoring
+- RTK fix status checking
+- Aurora SLAM health monitoring
+- Battery level monitoring for dock returns
+- Outdoor-specific recovery behaviors
+- GPS waypoint precision validation
+
+**Deliverables:**
+- Custom BT XML file
+- GPS quality checker nodes
+- Battery monitoring integration
+- Outdoor recovery behavior plugins
+
+---
+
+### Phase 7: Communication & Remote Control (Week 7)
 **Objective:** Enable live video and remote operation
 
 **Communication Links:**

@@ -9,6 +9,7 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import NavSatFix, NavSatStatus
 from geometry_msgs.msg import PoseStamped
+from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64
 import serial
 import math
@@ -37,10 +38,15 @@ class GPSDriverNode(Node):
         # Publishers
         self.navsat_pub = self.create_publisher(NavSatFix, '/fix', 10)
         self.enu_pub = self.create_publisher(PoseStamped, '/gps/enu_pose', 10) if self.publish_enu else None
+        self.enu_odom_pub = self.create_publisher(Odometry, '/gps/enu_odom', 10) if self.publish_enu else None
         self.heading_pub = self.create_publisher(Float64, '/gps/heading', 10) if self.publish_heading else None
 
         # Latest heading in degrees (True), None until received
         self.latest_heading_deg = None
+        
+        # Latest velocity (m/s) and course (degrees) from GPRMC
+        self.latest_speed_mps = None
+        self.latest_course_deg = None
         
         # Origin for ENU conversion (set on first fix or from params)
         self.origin_lat = self.get_parameter('origin_lat').value
@@ -150,6 +156,10 @@ class GPSDriverNode(Node):
             if self.publish_enu and self.origin_set:
                 enu_pose = self.gps_to_enu(lat, lon, altitude)
                 self.enu_pub.publish(enu_pose)
+                
+                # Also publish as Odometry with velocity
+                enu_odom = self.gps_to_enu_odom(lat, lon, altitude)
+                self.enu_odom_pub.publish(enu_odom)
             
             # Log periodically
             if num_sats > 0:
@@ -164,8 +174,23 @@ class GPSDriverNode(Node):
     def parse_gprmc(self, sentence):
         """Parse GPRMC NMEA sentence (for speed/course)"""
         # Example: $GPRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*6A
-        # Can be extended to extract speed and course if needed
-        pass
+        # Fields: Time, Status, Lat, N/S, Lon, E/W, Speed(knots), Course, Date, MagVar, E/W
+        parts = sentence.split(',')
+        if len(parts) < 9:
+            return
+        
+        try:
+            # Speed over ground in knots
+            if parts[7]:
+                speed_knots = float(parts[7])
+                self.latest_speed_mps = speed_knots * 0.514444  # Convert knots to m/s
+            
+            # Course over ground in degrees (True)
+            if parts[8]:
+                self.latest_course_deg = float(parts[8])
+                
+        except (ValueError, IndexError) as e:
+            self.get_logger().debug(f'Error parsing GPRMC: {e}')
 
     def parse_gphdt(self, sentence):
         """Parse GPHDT (True heading) NMEA sentence and publish heading"""
@@ -243,6 +268,66 @@ class GPSDriverNode(Node):
             pose_msg.pose.orientation.w = 1.0
         
         return pose_msg
+    
+    def gps_to_enu_odom(self, lat, lon, alt):
+        """Convert GPS lat/lon to Odometry message with position and velocity in ENU frame"""
+        R = 6371000.0  # Earth radius in meters
+        
+        lat_rad = math.radians(lat)
+        lon_rad = math.radians(lon)
+        lat0_rad = math.radians(self.origin_lat)
+        lon0_rad = math.radians(self.origin_lon)
+        
+        # ENU offsets from origin
+        east = R * math.cos(lat0_rad) * (lon_rad - lon0_rad)
+        north = R * (lat_rad - lat0_rad)
+        up = alt
+        
+        # Create Odometry message
+        odom_msg = Odometry()
+        odom_msg.header.stamp = self.get_clock().now().to_msg()
+        odom_msg.header.frame_id = 'map'
+        odom_msg.child_frame_id = 'base_link'
+        
+        # Position
+        odom_msg.pose.pose.position.x = east
+        odom_msg.pose.pose.position.y = north
+        odom_msg.pose.pose.position.z = up
+        
+        # Orientation from heading (HDT sentence)
+        if self.latest_heading_deg is not None:
+            yaw = math.radians(self.latest_heading_deg)
+            odom_msg.pose.pose.orientation.z = math.sin(yaw / 2.0)
+            odom_msg.pose.pose.orientation.w = math.cos(yaw / 2.0)
+        else:
+            odom_msg.pose.pose.orientation.w = 1.0
+        
+        # Velocity from GPRMC (speed and course)
+        if self.latest_speed_mps is not None and self.latest_course_deg is not None:
+            course_rad = math.radians(self.latest_course_deg)
+            # Convert course (navigation angle) to velocity components in ENU frame
+            # Course is measured clockwise from North, so: vx=speed*sin(course), vy=speed*cos(course)
+            odom_msg.twist.twist.linear.x = self.latest_speed_mps * math.sin(course_rad)
+            odom_msg.twist.twist.linear.y = self.latest_speed_mps * math.cos(course_rad)
+            odom_msg.twist.twist.linear.z = 0.0
+        
+        # Set covariances (rough estimates for RTK GPS)
+        # Position covariance (RTK can be cm-level accurate)
+        pos_cov = 0.01  # 1cm standard deviation for RTK
+        odom_msg.pose.covariance[0] = pos_cov    # x
+        odom_msg.pose.covariance[7] = pos_cov    # y
+        odom_msg.pose.covariance[14] = pos_cov   # z
+        
+        # Heading covariance (dual-antenna can be <1 degree)
+        heading_cov = math.radians(0.5) ** 2  # 0.5 degree standard deviation
+        odom_msg.pose.covariance[35] = heading_cov  # yaw
+        
+        # Velocity covariance
+        vel_cov = 0.1  # 0.1 m/s standard deviation
+        odom_msg.twist.covariance[0] = vel_cov   # vx
+        odom_msg.twist.covariance[7] = vel_cov   # vy
+        
+        return odom_msg
     
     def destroy_node(self):
         """Cleanup on shutdown"""

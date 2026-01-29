@@ -1,14 +1,18 @@
 # QWACR Project Summary
 
 **Quad-Wheel Autonomous Clamping Robot**  
-**Status**: Teleop control operational with encoder feedback and odometry publishing  
-**Date**: January 21, 2026
+**Status**: Phase 4 Complete - Nav2 navigation stack configured and verified, ready for hardware integration  
+**Date**: January 28, 2026
 
 ## System Overview
 
-QWACR is a 4-wheel differential drive robot with:
+QWACR is a 4-wheel differential drive autonomous robot with:
 - Arduino Mega 2560 motor controller with Hall encoder feedback
 - ROS2 Jazzy hardware interface for real-time control
+- Aurora SLAM sensor (LiDAR + visual + inertial SLAM with onboard processing)
+- RTK GPS with dual-antenna heading (cm-level positioning, sub-degree heading)
+- robot_localization dual EKF for local (odom) and global (map) sensor fusion
+- Nav2 autonomous navigation stack with GPS waypoint following
 - Battery-powered operation (24V 256Wh LiFePO4)
 - Velocity tracking: 97% @ 3 rad/s, 83% @ 6 rad/s
 
@@ -18,25 +22,30 @@ QWACR is a 4-wheel differential drive robot with:
 - **Motors**: 4× Pololu G2 24V 19:1 motors (100:1 effective with gearbox)
 - **Encoders**: Hall effect encoders, 3200 counts/rev after quadrature
 - **Controller**: Arduino Mega 2560 @ 115200 baud serial
+- **Aurora SLAM**: Network-connected LiDAR/visual/inertial SLAM sensor (192.168.11.1)
+- **GPS**: RTK GPS with dual-antenna heading (cm-level, sub-degree accuracy)
 - **Power**: 24V 256Wh LiFePO4 battery with 15A fuse
 
 ### Software Stack
 ```
-Teleop Keyboard → /cmd_vel (Twist) → TwistStamped Bridge → /diff_cont/cmd_vel_stamped
-                                                                    ↓
-                                                          DiffDriveController
-                                                                    ↓
-                                                     MegaDiffDriveHardware (hardware interface)
-                                                                    ↓
-                                                          Serial (COBS protocol)
-                                                                    ↓
-                                                     Arduino Mega (qwacr_main.ino)
-                                                                    ↓
-                                                     Motors + Encoders
-                                                                    ↓
-                                                    Encoder Feedback (30Hz)
-                                                                    ↓
-                                                     /joint_states, /diff_cont/odom, TF
+GPS Waypoint → gps_waypoint_follower → Nav2 (NavigateThroughPoses action)
+                                              ↓
+                                    BT Navigator + Global Planner
+                                              ↓
+                                    Local Planner (DWB Controller)
+                                              ↓
+                               /cmd_vel → TwistStamped Bridge → /diff_cont/cmd_vel_stamped
+                                                                       ↓
+                                                             DiffDriveController
+                                                                       ↓
+                                                        MegaDiffDriveHardware
+                                                                       ↓
+                                                       Arduino (PID + Encoders)
+
+Sensors → robot_localization (Dual EKF) → /odometry/local, /odometry/global → Nav2
+  ├─ Aurora SLAM: /odom, /scan, /imu
+  ├─ GPS: /gps/enu_odom (position, velocity, heading)
+  └─ Wheel Encoders: /joint_states
 ```
 
 ## Key Components
