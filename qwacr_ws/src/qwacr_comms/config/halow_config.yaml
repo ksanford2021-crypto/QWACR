@@ -1,0 +1,23 @@
+video_publisher:
+  ros__parameters:
+    camera1_device: "/dev/video0"
+    camera1_name: "front"
+    camera1_width: 1280
+    camera1_height: 720
+    camera1_fps: 20
+    camera1_bitrate: 3500
+
+    camera2_device: "/dev/video1"
+    camera2_name: "rear"
+    camera2_width: 1280
+    camera2_height: 720
+    camera2_fps: 15
+    camera2_bitrate: 3000
+
+    compression: "h264"
+    quality: 60
+
+    halow_interface: "wlan1"
+    base_station_ip: "10.20.0.100"
+    stream1_port: 5000
+    stream2_port: 5001

@@ -1,0 +1,16 @@
+lora_bridge:
+  ros__parameters:
+    role: robot
+    serial_port: "/dev/ttyUSB0"
+    baud_rate: 115200
+    telemetry_rate: 1.0
+    teleop_rate: 10.0
+    enable_serial: true
+
+command_mux:
+  ros__parameters:
+    timeout: 2.0
+
+telemetry_publisher:
+  ros__parameters:
+    rate_hz: 1.0

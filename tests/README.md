@@ -4,6 +4,27 @@ This directory contains various test scripts for validating the QWACR motor cont
 
 ## Current/Active Tests
 
+### hardware_full_test.sh
+**Purpose:** End-to-end hardware validation (joint states, odom, encoder log)  
+**Usage:** `./hardware_full_test.sh [/dev/ttyACM0] [115200]`  
+**Tests:** Launches motors_only (unless NO_LAUNCH=1), checks /joint_states, /diff_cont/odom, sends short cmd_vel, scans /rosout for encoder log  
+**Status:** ✅ Full hardware sanity check for on-robot testing
+
+**Recommended launch flow (with robust_launch.sh):**
+```bash
+# 1) Launch hardware stack (serial + controllers)
+./robust_launch.sh
+
+# 2) Run the test without launching motors_only again
+NO_LAUNCH=1 ./hardware_full_test.sh /dev/ttyACM0 115200
+```
+
+**Standalone launch flow:**
+```bash
+# Let the test script launch motors_only itself
+./hardware_full_test.sh /dev/ttyACM0 115200
+```
+
 ### test_all_motors.py
 **Purpose:** Comprehensive test of all 4 motors across multiple scenarios  
 **Usage:** `python3 test_all_motors.py`  

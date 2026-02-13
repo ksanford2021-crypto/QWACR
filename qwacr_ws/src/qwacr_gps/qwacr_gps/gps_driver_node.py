@@ -82,6 +82,9 @@ class GPSDriverNode(Node):
                 # Parse HDT (Heading - True). Talker ID can vary (e.g., GP, HE)
                 elif re.match(r'^\$..HDT,', line):
                     self.parse_gphdt(line)
+                # Parse PQTMTAR (Quectel proprietary heading message for dual-antenna modules)
+                elif line.startswith('$PQTMTAR'):
+                    self.parse_pqtmtar(line)
                     
         except Exception as e:
             self.get_logger().error(f'Error reading GPS: {e}')
@@ -210,6 +213,40 @@ class GPSDriverNode(Node):
                     self.heading_pub.publish(msg)
         except ValueError:
             self.get_logger().debug('Error parsing GPHDT heading')
+
+    def parse_pqtmtar(self, sentence):
+        """Parse PQTMTAR (Quectel proprietary heading) NMEA sentence"""
+        # Example: $PQTMTAR,1,142700.000,5,,1.866,-20.043530,,287.599513,24.200729,,25.510031,23*7B
+        # Fields: MsgVer, Time, Status, Reserved, BaselineLen, Yaw/Heading, Reserved, Pitch, Roll, Reserved, Reserved, NumSats
+        # Heading is field 6 (index 6) - direction from antenna 1 to antenna 2
+        parts = sentence.split(',')
+        if len(parts) < 7:
+            return
+        try:
+            status = int(parts[3]) if parts[3] else 0
+            # Status: 1=float, 2=fixed narrow, 3=fixed wide, 4=fixed, 5=fixed high precision
+            if status >= 1:  # Accept any valid solution
+                # Field 6 is Yaw/Heading from baseline vector (antenna1 → antenna2)
+                heading_str = parts[6]
+                
+                if heading_str:
+                    heading_deg = float(heading_str)
+                    # Normalize to 0-360
+                    heading_deg = heading_deg % 360
+                    if heading_deg < 0:
+                        heading_deg += 360
+                    
+                    self.latest_heading_deg = heading_deg
+                    if self.publish_heading and self.heading_pub:
+                        msg = Float64()
+                        msg.data = self.latest_heading_deg
+                        self.heading_pub.publish(msg)
+                        self.get_logger().info(
+                            f'GPS Heading: {heading_deg:.2f}° (status={status}, baseline={parts[5]}m)',
+                            throttle_duration_sec=2.0
+                        )
+        except (ValueError, IndexError) as e:
+            self.get_logger().debug(f'Error parsing PQTMTAR heading: {e}')
     
     def parse_coordinate(self, coord_str, direction):
         """Convert NMEA coordinate to decimal degrees"""

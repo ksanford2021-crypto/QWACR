@@ -1,26 +1,39 @@
 #!/bin/bash
 # Robust launch wrapper for QWACR
-# Automatically prepares serial port and launches with retry logic
+# Automatically prepares serial port with warmup and launches with retry logic
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SERIAL_PORT="${SERIAL_PORT:-/dev/ttyACM0}"
+BAUD_RATE="${BAUD_RATE:-115200}"
 USE_RVIZ="${USE_RVIZ:-false}"
 
 echo "========================================"
 echo "QWACR Robust Launch Script"
 echo "========================================"
 echo "Serial Port: $SERIAL_PORT"
+echo "Baud Rate: $BAUD_RATE"
 echo "RViz: $USE_RVIZ"
 echo ""
 
-# Step 1: Prepare serial port
+# Step 1: Prepare serial port with warmup
 echo "[1/3] Preparing serial port..."
 if [ -x "$SCRIPT_DIR/prepare_serial.sh" ]; then
-    "$SCRIPT_DIR/prepare_serial.sh" "$SERIAL_PORT" || echo "⚠ Serial preparation failed (non-critical), continuing..."
+    "$SCRIPT_DIR/prepare_serial.sh" "$SERIAL_PORT" "$BAUD_RATE"
+    if [ $? -ne 0 ]; then
+        echo "✗ Serial preparation failed"
+        echo ""
+        echo "Common fixes:"
+        echo "  1. Check Arduino is connected: ls -l $SERIAL_PORT"
+        echo "  2. Verify correct serial port (try /dev/ttyACM1 or /dev/ttyUSB0)"
+        echo "  3. Check USB cable and power"
+        echo "  4. Try unplugging and replugging Arduino"
+        exit 1
+    fi
 else
-    echo "⚠ Warning: prepare_serial.sh not found, skipping preparation"
+    echo "⚠ Warning: prepare_serial.sh not found at $SCRIPT_DIR/prepare_serial.sh"
+    echo "⚠ Skipping serial warmup - ros2_control may fail to connect"
 fi
 
 # Step 2: Kill any existing ROS nodes
@@ -37,8 +50,8 @@ source install/setup.bash
 
 # Launch with robust parameters
 ros2 launch qwacr_build display.launch.py \
-    serial_port:="$SERIAL_PORT" \
-    use_rviz:="$USE_RVIZ" \
+    serial_port:=${SERIAL_PORT} \
+    use_rviz:=${USE_RVIZ} \
     2>&1 | tee /tmp/qwacr_launch.log
 
 # If launch fails, show helpful error message
@@ -47,9 +60,10 @@ if [ $? -ne 0 ]; then
     echo "✗ Launch failed. Check /tmp/qwacr_launch.log for details"
     echo ""
     echo "Common fixes:"
-    echo "  1. Check Arduino is connected: ls -l $SERIAL_PORT"
-    echo "  2. Verify Arduino firmware is running"
+    echo "  1. Check Arduino firmware is uploaded and running"
+    echo "  2. Verify serial warmup completed successfully"
     echo "  3. Try power-cycling the Arduino"
-    echo "  4. Run manually: python3 ~/tests/test_all_motors.py"
+    echo "  4. Check for controller_manager errors in log"
+    echo "  5. Manually test serial: picocom $SERIAL_PORT -b $BAUD_RATE"
     exit 1
 fi

@@ -46,6 +46,17 @@ install(DIRECTORY include/
   DESTINATION include/
 )
 
+# Install launch files
+install(DIRECTORY launch/
+  DESTINATION share/${PROJECT_NAME}/launch
+)
+
+# Install scripts
+install(PROGRAMS
+  scripts/launch_motors_robust.sh
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 # Register the plugin with pluginlib
 pluginlib_export_plugin_description_file(hardware_interface mega_diff_drive_hardware.xml)
 
