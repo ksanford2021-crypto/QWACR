@@ -1,0 +1,87 @@
+<?xml version="1.0"?>
+<!--
+  QWACR Outdoor Navigation Behavior Tree
+
+  Purpose:
+  - Tailored for long-range, GPS/RTK + Aurora SLAM outdoor navigation
+  - Keeps the structure simple and readable while still providing
+    basic recovery behaviors suitable for field testing.
+
+  Notes:
+  - This tree is used by the Nav2 bt_navigator for NavigateToPose.
+  - It assumes the standard Nav2 plugin node set is available
+    (ComputePathToPose, FollowPath, GoalReached, RecoveryNode, etc.).
+  - Service/topic names align with the costmap names in nav2_params.yaml.
+-->
+
+<root main_tree_to_execute="NavigateToPoseTree">
+
+  <BehaviorTree ID="NavigateToPoseTree">
+
+    <!--
+      High-level structure
+      - RateController: run the tree body at a fixed frequency
+      - Fallback: succeed immediately if goal is already reached, otherwise navigate
+      - RecoveryNode: try navigation, then run recovery actions and retry on failure
+    -->
+    <RateController name="rate_controller" hz="5.0">
+      <Fallback name="goal_reached_or_navigate">
+
+        <!-- 1) If we are already at the goal, short-circuit and succeed. -->
+        <GoalReached name="goal_reached" />
+
+        <!-- 2) Otherwise, navigate with a limited set of recovery behaviors. -->
+        <RecoveryNode name="navigate_with_recovery" number_of_retries="3">
+
+          <!--
+            Child 0: main navigation sequence
+            - Compute a fresh path to the goal using the global planner
+            - Follow that path with the configured local controller
+          -->
+          <Sequence name="compute_and_follow_path">
+            <ComputePathToPose
+              name="compute_path_to_pose"
+              goal="{goal}"
+              path="{path}"
+              planner_id="GridBased" />
+
+            <FollowPath
+              name="follow_path"
+              path="{path}"
+              controller_id="FollowPath" />
+          </Sequence>
+
+          <!--
+            Child 1: recovery actions
+            These are conservative outdoor-safe behaviors intended to
+            clear bad obstacle data and wiggle the robot free.
+          -->
+          <Sequence name="recovery_sequence">
+            <!-- Clear local and global costmaps -->
+            <ClearEntireCostmap
+              name="clear_local_costmap"
+              service_name="local_costmap/clear_entirely_local_costmap" />
+
+            <ClearEntireCostmap
+              name="clear_global_costmap"
+              service_name="global_costmap/clear_entirely_global_costmap" />
+
+            <!-- Rotate in place to rescan surroundings -->
+            <Spin
+              name="spin_in_place"
+              spin_dist="1.57" />
+
+            <!-- Short pause to allow costmaps and localization to settle -->
+            <Wait
+              name="wait_after_recovery"
+              wait_duration="1.5" />
+          </Sequence>
+
+        </RecoveryNode>
+
+      </Fallback>
+    </RateController>
+
+  </BehaviorTree>
+
+</root>

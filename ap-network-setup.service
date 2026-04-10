@@ -1,0 +1,12 @@
+[Unit]
+Description=Configure Access Point Network Interface
+After=network.target hostapd.service
+Wants=hostapd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/configure_ap_ip.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

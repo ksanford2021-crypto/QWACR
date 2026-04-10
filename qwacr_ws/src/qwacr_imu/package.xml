@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>qwacr_imu</name>
+  <version>0.0.1</version>
+  <description>IMU driver node for SparkFun 9DoF ISM330DHCX on Raspberry Pi (publishes sensor_msgs/Imu).</description>
+
+  <maintainer email="kyle@example.com">Kyle</maintainer>
+  <license>MIT</license>
+
+  <!-- Pure Python package: use ament_python build type (no CMakeLists.txt) -->
+  <buildtool_depend>ament_python</buildtool_depend>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+
+  <!-- External Python libs (qwiic_ism330dhcx) are installed via pip on the Pi. -->
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

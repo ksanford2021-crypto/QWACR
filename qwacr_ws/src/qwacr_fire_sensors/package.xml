@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>qwacr_fire_sensors</name>
+  <version>0.0.1</version>
+  <description>ROS 2 nodes for SEN54 particulate/VOC sensor and MLX90640 thermal IR array via I2C mux.</description>
+
+  <maintainer email="kyle@example.com">Kyle</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+
+  <exec_depend>python3-smbus2</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
