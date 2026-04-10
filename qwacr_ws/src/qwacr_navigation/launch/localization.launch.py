@@ -61,7 +61,7 @@ def generate_launch_description():
         }.items()
     )
     
-    # Local EKF (odom frame): Aurora SLAM + Aurora IMU (+ wheel odom if available)
+    # Local EKF (odom frame): wheel odometry + IMU
     # Fuses continuous sensors for smooth local odometry
     ekf_local_node = Node(
         package='robot_localization',
@@ -70,11 +70,7 @@ def generate_launch_description():
         output='screen',
         parameters=[ekf_params_file, {'use_sim_time': use_sim_time}],
         remappings=[
-            # Remap actual published topics to what EKF config expects
-            ('/diff_cont/odom', 'odometry/wheel'),
-            ('/slamware_ros_sdk_server_node/odom', 'odom'),
-            ('/slamware_ros_sdk_server_node/imu_raw_data', 'imu'),
-            # Output topic
+            # Output topic only; inputs use /diff_cont/odom and /imu/data directly
             ('odometry/filtered', 'odometry/local'),
         ],
     )
@@ -88,12 +84,8 @@ def generate_launch_description():
         output='screen',
         parameters=[ekf_params_file, {'use_sim_time': use_sim_time}],
         remappings=[
-            # Remap actual published topics to what EKF config expects
-            ('/diff_cont/odom', 'odometry/wheel'),
-            ('/slamware_ros_sdk_server_node/odom', 'odom'),
-            ('/slamware_ros_sdk_server_node/imu_raw_data', 'imu'),
             # GPS already at /gps/enu_odom (correct in EKF config)
-            # Output topic
+            # Output topic only; inputs use /diff_cont/odom, /imu/data, /gps/enu_odom directly
             ('odometry/filtered', 'odometry/global'),
         ],
     )
