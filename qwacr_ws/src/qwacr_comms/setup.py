@@ -12,10 +12,13 @@ setup(
         ("share/qwacr_comms/launch", [
             "launch/robot_comms.launch.py",
             "launch/base_station.launch.py",
+            "launch/halow_video.launch.py",
+            "launch/halow_left_video.launch.py",
         ]),
         ("share/qwacr_comms/config", [
             "config/lora_config.yaml",
             "config/halow_config.yaml",
+            "config/halow_left_config.yaml",
         ]),
     ],
     install_requires=["setuptools", "pyserial"],
@@ -30,6 +33,9 @@ setup(
             "lora_bridge = qwacr_comms.lora_bridge:main",
             "command_mux = qwacr_comms.command_mux:main",
             "telemetry_publisher = qwacr_comms.telemetry_publisher:main",
+            "video_publisher = qwacr_comms.video_publisher:main",
+            "operator_console = qwacr_comms.operator_console:main",
+            "mission_manager = qwacr_comms.mission_manager:main",
         ],
     },
 )

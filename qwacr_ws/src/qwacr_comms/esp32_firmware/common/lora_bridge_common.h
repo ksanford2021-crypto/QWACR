@@ -180,8 +180,6 @@ inline void setup_radio() {
   SPI.begin(LORA_SCK, LORA_MISO, LORA_MOSI, LORA_NSS);
   int state = radio.begin();
   if (state != RADIOLIB_ERR_NONE) {
-    Serial.print("LoRa init failed, code=");
-    Serial.println(state);
     return;
   }
   radio.setFrequency(LORA_FREQUENCY_MHZ);
@@ -192,7 +190,6 @@ inline void setup_radio() {
 
   radio.setDio1Action(on_radio_receive);
   radio.startReceive();
-  Serial.println("LoRa radio ready");
 }
 
 inline void poll_radio() {
@@ -224,18 +221,16 @@ inline void poll_radio() {
 
 inline void handle_uart() {
   while (Serial.available() > 0 && uart_len < kUartBufferLen) {
-    uart_buffer[uart_len++] = static_cast<uint8_t>(Serial.read());
+    uint8_t byte = static_cast<uint8_t>(Serial.read());
+    uart_buffer[uart_len++] = byte;
   }
 
   ParsedFrame frame;
   while (parse_frame(uart_buffer, uart_len, frame)) {
     uint8_t out[kMaxFrameLen];
     size_t out_len = build_frame(frame.msg_id, frame.payload, frame.length, out);
+    
     int state = radio.transmit(out, out_len);
-    if (state != RADIOLIB_ERR_NONE) {
-      Serial.print("LoRa TX failed, code=");
-      Serial.println(state);
-    }
     radio.startReceive();
   }
 }

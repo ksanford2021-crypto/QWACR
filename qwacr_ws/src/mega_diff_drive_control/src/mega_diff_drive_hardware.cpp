@@ -43,6 +43,51 @@ namespace mega_diff_drive_control
             return CallbackReturn::ERROR;
         }
 
+        // Resolve joint indices by name so we don't depend on URDF order.
+        // Expected joint names contain these substrings.
+        bool fl_found = false, fr_found = false, bl_found = false, br_found = false;
+        for (std::size_t i = 0; i < info_.joints.size(); ++i)
+        {
+            const std::string & name = info_.joints[i].name;
+            if (name.find("front_left") != std::string::npos)
+            {
+                idx_fl_ = i;
+                fl_found = true;
+            }
+            else if (name.find("front_right") != std::string::npos)
+            {
+                idx_fr_ = i;
+                fr_found = true;
+            }
+            else if (name.find("back_left") != std::string::npos)
+            {
+                idx_bl_ = i;
+                bl_found = true;
+            }
+            else if (name.find("back_right") != std::string::npos)
+            {
+                idx_br_ = i;
+                br_found = true;
+            }
+        }
+
+        if (!fl_found || !fr_found || !bl_found || !br_found)
+        {
+            RCLCPP_FATAL(
+                rclcpp::get_logger("MegaDiffDriveHardware"),
+                "Failed to resolve all wheel joint indices. FL:%s FR:%s BL:%s BR:%s",
+                fl_found ? "ok" : "missing",
+                fr_found ? "ok" : "missing",
+                bl_found ? "ok" : "missing",
+                br_found ? "ok" : "missing");
+            return CallbackReturn::ERROR;
+        }
+
+        RCLCPP_INFO(
+            rclcpp::get_logger("MegaDiffDriveHardware"),
+            "Joint index mapping: FL=%zu FR=%zu BL=%zu BR=%zu",
+            idx_fl_, idx_fr_, idx_bl_, idx_br_);
+
         // Read Serial parameters from URDF/YAML
         auto it_port = info_.hardware_parameters.find("serial_port");
         auto it_baud = info_.hardware_parameters.find("baud_rate");
@@ -59,6 +104,10 @@ namespace mega_diff_drive_control
         hw_positions_.resize(info_.joints.size(), std::numeric_limits<double>::quiet_NaN());
         hw_velocities_.resize(info_.joints.size(), std::numeric_limits<double>::quiet_NaN());
         hw_commands_.resize(info_.joints.size(), std::numeric_limits<double>::quiet_NaN());
+
+        // Initialize previous-position storage for velocity computation
+        last_hw_positions_.resize(info_.joints.size(), 0.0);
+        velocity_initialized_ = false;
 
         RCLCPP_INFO(
             rclcpp::get_logger("MegaDiffDriveHardware"),
@@ -198,6 +247,8 @@ namespace mega_diff_drive_control
         // Initialize states to NaN
         hw_positions_.assign(hw_positions_.size(), std::numeric_limits<double>::quiet_NaN());
         hw_velocities_.assign(hw_velocities_.size(), std::numeric_limits<double>::quiet_NaN());
+        last_hw_positions_.assign(last_hw_positions_.size(), 0.0);
+        velocity_initialized_ = false;
         // Set initial command values to zero to prevent unexpected movement
         for (uint i = 0; i < hw_commands_.size(); ++i)
         {
@@ -373,46 +424,117 @@ namespace mega_diff_drive_control
 
     // Helper function to parse binary feedback packet
     bool MegaDiffDriveHardware::parse_binary_feedback(const uint8_t* packet, size_t len) {
-        if (len < 33 || packet[0] != 0x10) {
-            RCLCPP_DEBUG(rclcpp::get_logger("MegaDiffDriveHardware"),
-                        "Feedback validation failed: len=%zu (need>=33), ID=0x%02X (need 0x10)",
+        // 1 byte type + 16 bytes encoders + 16 bytes velocities + 16 bytes currents = 49 bytes
+        if (len < 49 || packet[0] != 0x10) {
+            RCLCPP_INFO(rclcpp::get_logger("MegaDiffDriveHardware"),
+                        "Feedback validation failed: len=%zu (need>=49), ID=0x%02X (need 0x10)",
                         len, len > 0 ? packet[0] : 0);
             return false;
         }
 
         const size_t num_joints = 4;
 
-        // Parse 4 encoder counts (int32, little-endian) from bytes 1-16
-        int32_t encoder_counts[4];
-        for (size_t i = 0; i < num_joints; ++i) {
-            uint32_t enc_bytes = (packet[1 + i*4] |
-                                 (packet[2 + i*4] << 8) |
-                                 (packet[3 + i*4] << 16) |
-                                 (packet[4 + i*4] << 24));
-            encoder_counts[i] = static_cast<int32_t>(enc_bytes);
-            
-            // Convert encoder counts to radians: (counts / COUNTS_PER_REV) * 2π
-            // COUNTS_PER_REV = 3200 (2x quadrature on 1600 PPR encoder)
-            const float COUNTS_PER_REV = 3200.0f;
-            hw_positions_[i] = (encoder_counts[i] / COUNTS_PER_REV) * 2.0f * M_PI;
-        }
+        // Parse 4 encoder counts (int32, little-endian) from bytes 1-16.
+        // Arduino packet order is fixed as: [FL, BL, FR, BR].
+        int32_t enc_fl, enc_bl, enc_fr, enc_br;
+
+        auto read_int32_le = [](const uint8_t* data) -> int32_t {
+            uint32_t v = (static_cast<uint32_t>(data[0]) |
+                         (static_cast<uint32_t>(data[1]) << 8) |
+                         (static_cast<uint32_t>(data[2]) << 16) |
+                         (static_cast<uint32_t>(data[3]) << 24));
+            return static_cast<int32_t>(v);
+        };
+
+        enc_fl = read_int32_le(&packet[1 + 0 * 4]);
+        enc_bl = read_int32_le(&packet[1 + 1 * 4]);
+        enc_fr = read_int32_le(&packet[1 + 2 * 4]);
+        enc_br = read_int32_le(&packet[1 + 3 * 4]);
+
+        // Convert encoder counts to radians: (counts / COUNTS_PER_REV) * 2π
+        // COUNTS_PER_REV = 3200 (2x quadrature on 1600 PPR encoder)
+        const float COUNTS_PER_REV = 3200.0f;
+        double pos_fl = (enc_fl / COUNTS_PER_REV) * 2.0f * M_PI;
+        double pos_fr = (enc_fr / COUNTS_PER_REV) * 2.0f * M_PI;
+        double pos_bl = (enc_bl / COUNTS_PER_REV) * 2.0f * M_PI;
+        double pos_br = (enc_br / COUNTS_PER_REV) * 2.0f * M_PI;
+
+        // Apply the same sign convention used for commands: we negate the
+        // left side so that positive rotation on all four wheels corresponds
+        // to forward motion of the base in ROS coordinates.
+        pos_fl = -pos_fl;
+        pos_bl = -pos_bl;
+
+        // Map into hw_positions_ using the resolved joint indices.
+        hw_positions_[idx_fl_] = pos_fl;  // FL joint
+        hw_positions_[idx_fr_] = pos_fr;  // FR joint
+        hw_positions_[idx_bl_] = pos_bl;  // BL joint
+        hw_positions_[idx_br_] = pos_br;  // BR joint
         
         static int log_counter = 0;
         if (++log_counter % 30 == 0) {  // Log every ~1 second (30 cycles at 30Hz)
             RCLCPP_INFO(rclcpp::get_logger("MegaDiffDriveHardware"),
-                        "Encoders: FL=%d BL=%d FR=%d BR=%d | Pos: FL=%.3f BL=%.3f FR=%.3f BR=%.3f rad",
-                        encoder_counts[0], encoder_counts[1], encoder_counts[2], encoder_counts[3],
-                        hw_positions_[0], hw_positions_[1], hw_positions_[2], hw_positions_[3]);
+                        "Encoders raw counts: FL=%d BL=%d FR=%d BR=%d | Pos(rad): FL=%.3f FR=%.3f BL=%.3f BR=%.3f",
+                        enc_fl, enc_bl, enc_fr, enc_br,
+                        pos_fl, pos_fr, pos_bl, pos_br);
         }
 
-        // Parse 4 velocities (float, little-endian) from bytes 17-32
-        for (size_t i = 0; i < num_joints; ++i) {
-            uint32_t vel_bytes = (packet[17 + i*4] |
-                                 (packet[18 + i*4] << 8) |
-                                 (packet[19 + i*4] << 16) |
-                                 (packet[20 + i*4] << 24));
-            float velocity = *reinterpret_cast<float*>(&vel_bytes);
-            hw_velocities_[i] = static_cast<double>(velocity);
+        // Parse 4 velocities (float, little-endian) from bytes 17-32.
+        // Arduino packet order: [FL, BL, FR, BR]
+        auto read_float_le = [](const uint8_t* data) -> float {
+            uint32_t v = (static_cast<uint32_t>(data[0]) |
+                         (static_cast<uint32_t>(data[1]) << 8) |
+                         (static_cast<uint32_t>(data[2]) << 16) |
+                         (static_cast<uint32_t>(data[3]) << 24));
+            float f;
+            std::memcpy(&f, &v, sizeof(float));
+            return f;
+        };
+
+        // We still parse the 4 velocity floats from the Arduino packet for
+        // debugging, but joint_state velocities are computed from encoder
+        // position deltas on the ROS side for smoother, less sporadic data.
+        float vel_fl_raw = read_float_le(&packet[17 + 0 * 4]);
+        float vel_bl_raw = read_float_le(&packet[17 + 1 * 4]);
+        float vel_fr_raw = read_float_le(&packet[17 + 2 * 4]);
+        float vel_br_raw = read_float_le(&packet[17 + 3 * 4]);
+
+        (void)vel_fl_raw;
+        (void)vel_bl_raw;
+        (void)vel_fr_raw;
+        (void)vel_br_raw;
+
+        // Compute joint velocities from encoder-based wheel positions.
+        auto now = std::chrono::steady_clock::now();
+        if (!velocity_initialized_) {
+            last_hw_positions_ = hw_positions_;
+            last_velocity_time_ = now;
+            velocity_initialized_ = true;
+            for (auto &v : hw_velocities_) {
+                v = 0.0;
+            }
+        } else {
+            double dt = std::chrono::duration_cast<std::chrono::duration<double>>(now - last_velocity_time_).count();
+            if (dt > 1e-4) {
+                for (std::size_t i = 0; i < hw_positions_.size(); ++i) {
+                    double vel = (hw_positions_[i] - last_hw_positions_[i]) / dt;
+                    hw_velocities_[i] = vel;
+                }
+                last_hw_positions_ = hw_positions_;
+                last_velocity_time_ = now;
+            }
+        }
+
+        // Parse 4 currents (float, little-endian) from bytes 33-48, Arduino order [FL, BL, FR, BR]
+        float cur_fl = read_float_le(&packet[33 + 0 * 4]);
+        float cur_bl = read_float_le(&packet[33 + 1 * 4]);
+        float cur_fr = read_float_le(&packet[33 + 2 * 4]);
+        float cur_br = read_float_le(&packet[33 + 3 * 4]);
+
+        static int current_log_counter = 0;
+        if (++current_log_counter % 30 == 0) {
+            RCLCPP_INFO(rclcpp::get_logger("MegaDiffDriveHardware"),
+                        "Currents (A): FL=%.2f BL=%.2f FR=%.2f BR=%.2f", cur_fl, cur_bl, cur_fr, cur_br);
         }
 
         return true;
@@ -433,13 +555,14 @@ namespace mega_diff_drive_control
             return hardware_interface::return_type::ERROR;
         }
 
-        // Expected hw_commands_ layout: [FL, FR, BL, BR] wheels
-        // Robot kinematics: average left pair (FL+BL) and right pair (FR+BR)
-        const size_t FL = 0, FR = 1, BL = 2, BR = 3;
+        // Calculate average velocities for left and right wheel pairs using
+        // the resolved joint indices (front/back, left/right).
+        float left_velocity = static_cast<float>((hw_commands_[idx_fl_] + hw_commands_[idx_bl_]) / 2.0);
+        float right_velocity = static_cast<float>((hw_commands_[idx_fr_] + hw_commands_[idx_br_]) / 2.0);
 
-        // Calculate average velocities for left and right wheel pairs
-        float left_velocity = static_cast<float>((hw_commands_[FL] + hw_commands_[BL]) / 2.0);
-        float right_velocity = static_cast<float>((hw_commands_[FR] + hw_commands_[BR]) / 2.0);
+        // Adjust left side sign so that a positive command corresponds
+        // to the same physical forward direction as the right side
+        left_velocity = -left_velocity;
 
         // Clamp to max velocity (±9.42 rad/s = ±90 RPM)
         const float MAX_VEL = 9.42f;
@@ -553,11 +676,11 @@ namespace mega_diff_drive_control
     void MegaDiffDriveHardware::update_odometry()
     {
         // Compute odometry from wheel positions
-        // For differential drive: 
-        // - Left wheels: FL (index 0) + BL (index 2)
-        // - Right wheels: FR (index 1) + BR (index 3)
-        double left_pos = (hw_positions_[0] + hw_positions_[2]) / 2.0;
-        double right_pos = (hw_positions_[1] + hw_positions_[3]) / 2.0;
+        // For differential drive we use averaged left and right wheel positions
+        // using the resolved joint indices so the math is correct regardless
+        // of URDF joint ordering.
+        double left_pos = (hw_positions_[idx_fl_] + hw_positions_[idx_bl_]) / 2.0;
+        double right_pos = (hw_positions_[idx_fr_] + hw_positions_[idx_br_]) / 2.0;
         
         // Compute distance traveled by each side
         static double prev_left_pos = 0.0;

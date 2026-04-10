@@ -19,35 +19,45 @@
 // Motor Front-Left (Pololu G2 Driver 1, Motor A)
 #define MOTOR_FL_PWM 9
 #define MOTOR_FL_DIR 8
+// Use high-numbered GPIOs for encoder B channels to keep them physically separated
 #define ENCODER_FL_A 2      // Interrupt pin (INT4)
-#define ENCODER_FL_B 24     // GPIO pin (no interrupt needed)
+#define ENCODER_FL_B 41     // GPIO pin (no interrupt needed)
 
 // Motor Back-Left (Pololu G2 Driver 1, Motor B)
 #define MOTOR_BL_PWM 10
 #define MOTOR_BL_DIR 7
 #define ENCODER_BL_A 18     // Interrupt pin (INT3)
-#define ENCODER_BL_B 25     // GPIO pin (no interrupt needed)
+#define ENCODER_BL_B 45     // GPIO pin (no interrupt needed)
 
 // Motor Front-Right (Pololu G2 Driver 2, Motor A)
 #define MOTOR_FR_PWM 11
 #define MOTOR_FR_DIR 6
 #define ENCODER_FR_A 20     // Interrupt pin (INT1)
-#define ENCODER_FR_B 26     // GPIO pin (no interrupt needed)
+#define ENCODER_FR_B 49     // GPIO pin (no interrupt needed)
 
 // Motor Back-Right (Pololu G2 Driver 2, Motor B)
 #define MOTOR_BR_PWM 12
 #define MOTOR_BR_DIR 5
 #define ENCODER_BR_A 3      // Interrupt pin (INT5)
-#define ENCODER_BR_B 27     // GPIO pin (no interrupt needed)
+#define ENCODER_BR_B 53     // GPIO pin (no interrupt needed)
 
 // Motor Driver Sleep Pins (active HIGH to enable, LOW to sleep)
 // Driver 1 (Left motors FL + BL)
-#define DRIVER_1_M1SLP 28   // M1SLP for FL motor (Driver 1)
+#define DRIVER_1_M1SLP 37   // M1SLP for FL motor (Driver 1)
 #define DRIVER_1_M2SLP 29   // M2SLP for BL motor (Driver 1)
 
 // Driver 2 (Right motors FR + BR)
 #define DRIVER_2_M1SLP 30   // M1SLP for FR motor (Driver 2)
 #define DRIVER_2_M2SLP 31   // M2SLP for BR motor (Driver 2)
+
+// Motor Driver Current Sense Pins (analog inputs)
+// Driver 1 (Left motors FL + BL)
+#define DRIVER_1_M1CS A0    // Current sense for FL motor (Driver 1 M1CS)
+#define DRIVER_1_M2CS A1    // Current sense for BL motor (Driver 1 M2CS)
+
+// Driver 2 (Right motors FR + BR)
+#define DRIVER_2_M1CS A2    // Current sense for FR motor (Driver 2 M1CS)
+#define DRIVER_2_M2CS A3    // Current sense for BR motor (Driver 2 M2CS)
 
 // Encoder counts per output shaft revolution
 // 2x quadrature decoding: 64 base CPR × 100 gear × 2 edges (A channel) = 3200
@@ -57,22 +67,46 @@
 // Motor nominal speed: 90 RPM = 9.42 rad/s
 #define MAX_VELOCITY_RAD_S 9.42
 
+// Pololu Dual G2 24v14 current sense characteristics
+// Current sense output ~20 mV/A, with ~50 mV offset
+// Arduino Mega ADC: 0-5V mapped to 0-1023
+const float CS_V_PER_A = 0.020f;      // 20 mV/A
+const float CS_OFFSET_V = 0.05f;      // ~50 mV offset
+const float ADC_REF_V = 5.0f;         // ADC reference voltage
+const float CURRENT_LIMIT_A = 2.6f;   // Nominal max current per motor channel (straight driving)
+const float CURRENT_LIMIT_TURN_BOOST_A = 5.0f; // Higher limit during turn boost for skid-steer turns
+
 // Motor objects with PID parameters (Kp, Ki, Kd, Kff)
-// Testing middle ground: Kff=32, Kp=25, Ki=0.3, Kd=0.2
-Motor motor_fl(MOTOR_FL_PWM, MOTOR_FL_DIR, COUNTS_PER_REV, 25.0, 0.3, 0.2, 32.0);
-Motor motor_bl(MOTOR_BL_PWM, MOTOR_BL_DIR, COUNTS_PER_REV, 25.0, 0.3, 0.2, 32.0);
-Motor motor_fr(MOTOR_FR_PWM, MOTOR_FR_DIR, COUNTS_PER_REV, 25.0, 0.3, 0.2, 32.0);
-Motor motor_br(MOTOR_BR_PWM, MOTOR_BR_DIR, COUNTS_PER_REV, 25.0, 0.3, 0.2, 32.0);
+// Tuned for more torque but still smoother than original: Kff=32, Kp=18, Ki=0.2, Kd=0.05
+Motor motor_fl(MOTOR_FL_PWM, MOTOR_FL_DIR, COUNTS_PER_REV, 18.0, 0.2, 0.05, 32.0);
+Motor motor_bl(MOTOR_BL_PWM, MOTOR_BL_DIR, COUNTS_PER_REV, 18.0, 0.2, 0.05, 32.0);
+Motor motor_fr(MOTOR_FR_PWM, MOTOR_FR_DIR, COUNTS_PER_REV, 18.0, 0.2, 0.05, 32.0);
+Motor motor_br(MOTOR_BR_PWM, MOTOR_BR_DIR, COUNTS_PER_REV, 18.0, 0.2, 0.05, 32.0);
 
 // Serial communication
 SerialProtocol serial_protocol;
 
 // Timing variables (milliseconds)
 unsigned long last_command_time = 0;
-const unsigned long COMMAND_TIMEOUT = 2000;  // Stop if no command for 2 seconds
+// Stop and put drivers to sleep quickly if no command is received
+// This reduces idle "ghost" noise from the motor drivers.
+const unsigned long COMMAND_TIMEOUT = 500;  // milliseconds
 
 // Motor enable flag - prevents PID output until first command received
 boolean motors_enabled = false;
+
+// Ramped velocity targets (rad/s) and acceleration limiting
+double target_vel_left = 0.0;
+double target_vel_right = 0.0;
+unsigned long last_ramp_update_time = 0;
+// Max change in wheel velocity per second (rad/s^2)
+const double MAX_ACCEL_RAD_S2 = 8.0;       // normal accel for straight driving
+const double MAX_ACCEL_TURN_RAD_S2 = 14.0; // slightly snappier accel when turning in place
+
+// Temporary current-limit boost for skid-steer turns
+bool turn_boost_active = false;
+unsigned long turn_boost_start_time = 0;
+const unsigned long TURN_BOOST_DURATION_MS = 250;  // Allow extra current for first 0.25 s of a turn
 
 // Debug: count bytes received to detect serial data flow
 unsigned long bytes_received = 0;
@@ -83,6 +117,18 @@ volatile long encoder_fl_count = 0;
 volatile long encoder_bl_count = 0;
 volatile long encoder_fr_count = 0;
 volatile long encoder_br_count = 0;
+
+// Helper to read motor current (in amps) from a current sense analog pin
+float readMotorCurrentA(int cs_pin)
+{
+  int raw = analogRead(cs_pin);
+  float voltage = (static_cast<float>(raw) * ADC_REF_V) / 1023.0f;
+  float current = (voltage - CS_OFFSET_V) / CS_V_PER_A;
+  if (current < 0.0f) {
+    current = 0.0f;
+  }
+  return current;
+}
 
 // Quadrature decoders for all 4 encoders
 // A-edge counting with direction from channel B using XOR logic:
@@ -154,6 +200,12 @@ void setup() {
   pinMode(ENCODER_FR_B, INPUT);
   pinMode(ENCODER_BR_A, INPUT);
   pinMode(ENCODER_BR_B, INPUT);
+
+  // Current sense pins (analog inputs)
+  pinMode(DRIVER_1_M1CS, INPUT);
+  pinMode(DRIVER_1_M2CS, INPUT);
+  pinMode(DRIVER_2_M1CS, INPUT);
+  pinMode(DRIVER_2_M2CS, INPUT);
   
   // Initialize quadrature decoders
   
@@ -207,16 +259,58 @@ void loop() {
       digitalWrite(DRIVER_2_M1SLP, HIGH);  // Wake FR motor
       digitalWrite(DRIVER_2_M2SLP, HIGH);  // Wake BR motor
       
-      // Set velocity setpoints for PID (in rad/s)
-      // Clamp to motor limits (±90 RPM = ±9.42 rad/s)
+      // Clamp commanded velocities to motor limits (±90 RPM = ±9.42 rad/s)
       double vel_left_clamped = constrain(cmd.vel_left, -MAX_VELOCITY_RAD_S, MAX_VELOCITY_RAD_S);
       double vel_right_clamped = constrain(cmd.vel_right, -MAX_VELOCITY_RAD_S, MAX_VELOCITY_RAD_S);
-      
-      // Left motors get vel_left, right motors get vel_right
-      motor_fl.setVelocity(vel_left_clamped);
-      motor_bl.setVelocity(vel_left_clamped);
-      motor_fr.setVelocity(vel_right_clamped);
-      motor_br.setVelocity(vel_right_clamped);
+
+      // Update ramp targets instead of instantly stepping setpoints
+      target_vel_left = vel_left_clamped;
+      target_vel_right = vel_right_clamped;
+
+      // Detect strong skid-steer turns (left/right wheels commanding opposite directions)
+      bool turning_in_place =
+        ((vel_left_clamped > 0.3 && vel_right_clamped < -0.3) ||
+         (vel_left_clamped < -0.3 && vel_right_clamped > 0.3));
+
+      if (turning_in_place) {
+        turn_boost_active = true;
+        turn_boost_start_time = current_time;
+      }
+  }
+
+  // Apply velocity ramping toward latest targets to avoid current spikes
+  if (motors_enabled) {
+    if (last_ramp_update_time == 0) {
+      last_ramp_update_time = current_time;
+    }
+
+    double dt = (current_time - last_ramp_update_time) / 1000.0;  // seconds
+    if (dt > 0.0) {
+      if (dt > 0.5) dt = 0.5;  // clamp for safety
+
+      double accel_limit = turn_boost_active ? MAX_ACCEL_TURN_RAD_S2 : MAX_ACCEL_RAD_S2;
+      double max_step = accel_limit * dt;
+
+      auto rampToward = [max_step](double current_val, double target_val) -> double {
+        double delta = target_val - current_val;
+        if (delta > max_step) delta = max_step;
+        else if (delta < -max_step) delta = -max_step;
+        return current_val + delta;
+      };
+
+      double current_left_setpoint = motor_fl.getSetpoint();
+      double current_right_setpoint = motor_fr.getSetpoint();
+
+      double new_left = rampToward(current_left_setpoint, target_vel_left);
+      double new_right = rampToward(current_right_setpoint, target_vel_right);
+
+      motor_fl.setVelocity(new_left);
+      motor_bl.setVelocity(new_left);
+      motor_fr.setVelocity(new_right);
+      motor_br.setVelocity(new_right);
+
+      last_ramp_update_time = current_time;
+    }
   }
   
   // Timeout safety: stop motors if no command received
@@ -232,9 +326,45 @@ void loop() {
     digitalWrite(DRIVER_2_M2SLP, LOW);
     digitalWrite(LED_BUILTIN, LOW);  // Turn off LED when motors disabled
     motors_enabled = false;
+    // Reset ramping and turn-boost state when motors are disabled
+    target_vel_left = 0.0;
+    target_vel_right = 0.0;
+    last_ramp_update_time = 0;
+    turn_boost_active = false;
   }
   
-  // Update PID if motors are enabled
+  // Monitor motor currents and adjust per-motor PWM scale so current stays below limit
+  if (motors_enabled) {
+    // Update temporary turn-boost window
+    if (turn_boost_active && (current_time - turn_boost_start_time > TURN_BOOST_DURATION_MS)) {
+      turn_boost_active = false;
+    }
+
+    float effective_current_limit = turn_boost_active ? CURRENT_LIMIT_TURN_BOOST_A : CURRENT_LIMIT_A;
+
+    float current_fl = readMotorCurrentA(DRIVER_1_M1CS);
+    float current_bl = readMotorCurrentA(DRIVER_1_M2CS);
+    float current_fr = readMotorCurrentA(DRIVER_2_M1CS);
+    float current_br = readMotorCurrentA(DRIVER_2_M2CS);
+
+    auto computeScale = [effective_current_limit](float current) -> double {
+      if (current <= 0.0f || current <= effective_current_limit) {
+        return 1.0;
+      }
+      double scale = static_cast<double>(effective_current_limit / current);
+      // Prevent scale from dropping too low so the motor can still produce torque
+      if (scale < 0.4) scale = 0.4;
+      if (scale > 1.0) scale = 1.0;
+      return scale;
+    };
+
+    motor_fl.setOutputScale(computeScale(current_fl));
+    motor_bl.setOutputScale(computeScale(current_bl));
+    motor_fr.setOutputScale(computeScale(current_fr));
+    motor_br.setOutputScale(computeScale(current_br));
+  }
+
+  // Update PID if motors are enabled (PWM scaling applied inside Motor)
   if (motors_enabled) {
     motor_fl.updatePID(encoder_fl_count);
     motor_bl.updatePID(encoder_bl_count);
@@ -249,12 +379,19 @@ void loop() {
     double vel_bl = motor_bl.getVelocity();
     double vel_fr = motor_fr.getVelocity();
     double vel_br = motor_br.getVelocity();
+
+    // Read latest currents (amps) for each motor channel
+    float cur_fl = readMotorCurrentA(DRIVER_1_M1CS);
+    float cur_bl = readMotorCurrentA(DRIVER_1_M2CS);
+    float cur_fr = readMotorCurrentA(DRIVER_2_M1CS);
+    float cur_br = readMotorCurrentA(DRIVER_2_M2CS);
     
     // Send feedback packet immediately in response to query
     serial_protocol.sendFeedback(Serial, 
-                                 encoder_fl_count, encoder_bl_count, 
-                                 encoder_fr_count, encoder_br_count,
-                                 vel_fl, vel_bl, vel_fr, vel_br);
+                   encoder_fl_count, encoder_bl_count, 
+                   encoder_fr_count, encoder_br_count,
+                   vel_fl, vel_bl, vel_fr, vel_br,
+                   cur_fl, cur_bl, cur_fr, cur_br);
   }
   
   // Small delay to prevent overwhelming the loop

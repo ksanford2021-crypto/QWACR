@@ -29,6 +29,9 @@ fi
 echo "Publishing dummy telemetry (no sensor data)"
 ros2 topic pub -1 /lora/telemetry_out std_msgs/String '{data: "{\"gps_lat\":0.0,\"gps_lon\":0.0,\"gps_fix\":0,\"battery_v\":12.0,\"battery_a\":0.0,\"system_status\":0,\"odom_distance\":0.0,\"rssi\":0,\"snr\":0}" }' >/dev/null
 
+echo "Waiting for telemetry to transmit..."
+sleep 5
+
 kill "$BRIDGE_PID" >/dev/null 2>&1 || true
 wait "$BRIDGE_PID" 2>/dev/null || true
 

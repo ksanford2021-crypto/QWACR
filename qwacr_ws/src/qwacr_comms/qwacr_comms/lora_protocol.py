@@ -131,10 +131,10 @@ def pack_telemetry(telemetry: Telemetry) -> bytes:
 
 def unpack_telemetry(payload: bytes) -> Optional[Telemetry]:
     """Unpack telemetry payload into Telemetry."""
-    if len(payload) < 25:
+    if len(payload) < 24:
         return None
     _, gps_lat, gps_lon, gps_fix, batt_v, batt_a, status, odom, rssi, snr = struct.unpack(
-        "<i ffB HHB f bb", payload[:25]
+        "<i ffB HHB f bb", payload[:24]
     )
     return Telemetry(
         gps_lat=gps_lat,

@@ -35,4 +35,10 @@ def generate_launch_description():
             name="command_mux",
             parameters=[{"timeout": 2.0}],
         ),
+        Node(
+            package="qwacr_comms",
+            executable="mission_manager",
+            name="mission_manager",
+            output="screen",
+        ),
     ])

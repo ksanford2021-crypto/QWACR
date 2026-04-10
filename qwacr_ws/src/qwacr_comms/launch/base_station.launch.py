@@ -23,4 +23,11 @@ def generate_launch_description():
                 "baud_rate": baud_rate,
             }],
         ),
+        # SSH-friendly terminal UI for teleop, camera select, and telemetry view
+        Node(
+            package="qwacr_comms",
+            executable="operator_console",
+            name="operator_console",
+            output="screen",
+        ),
     ])

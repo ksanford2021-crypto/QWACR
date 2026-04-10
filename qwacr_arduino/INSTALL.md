@@ -130,13 +130,13 @@ New configuration (✅ CORRECT):
 ```cpp
 // Use this - all unique pins, no conflicts
 #define ENCODER_FL_A 2      // INT4
-#define ENCODER_FL_B 24     // GPIO
+#define ENCODER_FL_B 41     // GPIO
 #define ENCODER_BL_A 18     // INT3
-#define ENCODER_BL_B 25     // GPIO
+#define ENCODER_BL_B 45     // GPIO
 #define ENCODER_FR_A 20     // INT1
-#define ENCODER_FR_B 26     // GPIO
+#define ENCODER_FR_B 49     // GPIO
 #define ENCODER_BR_A 3      // INT5
-#define ENCODER_BR_B 27     // GPIO
+#define ENCODER_BR_B 53     // GPIO
 ```
 
 ## Troubleshooting

@@ -33,8 +33,8 @@ diff_cont:
     twist_covariance_diagonal: [0.001, 0.001, 0.001, 0.001, 0.001, 0.01]
     
     cmd_vel_timeout: 0.5
-    open_loop: true  # Use open-loop control (direct velocity commands)
-    position_feedback: false  # Don't use position feedback for PID
+    open_loop: false  # Use encoder feedback for odometry integration
+    position_feedback: true  # Enable position/velocity feedback from joints
     use_stamped_vel: true  # Expect geometry_msgs/TwistStamped for teleop
     
     # Velocity limits for cmd_vel
@@ -47,9 +47,9 @@ diff_cont:
     linear.x.max_deceleration: -5.0  # m/s²
     linear.x.min_deceleration: -5.0  # m/s²
     angular.z.has_velocity_limits: true
-    angular.z.max_velocity: 3.0  # rad/s
-    angular.z.min_velocity: -3.0  # rad/s
+    angular.z.max_velocity: 4.0  # rad/s (allow faster in-place yaw)
+    angular.z.min_velocity: -4.0  # rad/s
     angular.z.has_acceleration_limits: true
-    angular.z.max_acceleration: 8.0  # rad/s²
-    angular.z.min_acceleration: -8.0  # rad/s²
-    angular.z.max_deceleration: -8.0  # rad/s²
+    angular.z.max_acceleration: 12.0  # rad/s² (snappier yaw response)
+    angular.z.min_acceleration: -12.0  # rad/s²
+    angular.z.max_deceleration: -12.0  # rad/s²

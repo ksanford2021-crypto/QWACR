@@ -16,6 +16,7 @@ def generate_launch_description():
     
     # Configuration files
     nav2_params_file = os.path.join(qwacr_nav_dir, 'config', 'nav2_params.yaml')
+    bt_xml_file = os.path.join(qwacr_nav_dir, 'config', 'qwacr_outdoor_nav.xml')
     
     # Launch arguments
     use_sim_time = LaunchConfiguration('use_sim_time')
@@ -23,6 +24,7 @@ def generate_launch_description():
     params_file = LaunchConfiguration('params_file')
     use_composition = LaunchConfiguration('use_composition')
     use_respawn = LaunchConfiguration('use_respawn')
+    default_bt_xml_filename = LaunchConfiguration('default_bt_xml_filename')
     
     declare_use_sim_time_cmd = DeclareLaunchArgument(
         'use_sim_time',
@@ -49,6 +51,11 @@ def generate_launch_description():
         default_value='False',
         description='Whether to respawn if a node crashes')
     
+    declare_default_bt_xml_cmd = DeclareLaunchArgument(
+        'default_bt_xml_filename',
+        default_value=bt_xml_file,
+        description='Full path to the default Nav2 behavior tree XML file to use')
+    
     # Include Nav2 bringup
     nav2_bringup_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -60,6 +67,7 @@ def generate_launch_description():
             'params_file': params_file,
             'use_composition': use_composition,
             'use_respawn': use_respawn,
+            'default_bt_xml_filename': default_bt_xml_filename,
         }.items()
     )
     
@@ -72,6 +80,7 @@ def generate_launch_description():
     ld.add_action(declare_params_file_cmd)
     ld.add_action(declare_use_composition_cmd)
     ld.add_action(declare_use_respawn_cmd)
+    ld.add_action(declare_default_bt_xml_cmd)
     
     # Add Nav2 nodes
     ld.add_action(nav2_bringup_launch)

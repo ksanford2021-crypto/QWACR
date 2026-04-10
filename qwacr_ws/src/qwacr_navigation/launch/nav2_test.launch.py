@@ -21,11 +21,13 @@ def generate_launch_description():
     
     # File paths
     nav2_params_file = os.path.join(qwacr_nav_dir, 'config', 'nav2_params.yaml')
+    bt_xml_file = os.path.join(qwacr_nav_dir, 'config', 'qwacr_outdoor_nav.xml')
     
     # Launch arguments
     use_sim_time = LaunchConfiguration('use_sim_time')
     use_rviz = LaunchConfiguration('use_rviz')
     autostart = LaunchConfiguration('autostart')
+    default_bt_xml_filename = LaunchConfiguration('default_bt_xml_filename')
     
     declare_use_sim_time_cmd = DeclareLaunchArgument(
         'use_sim_time',
@@ -41,6 +43,11 @@ def generate_launch_description():
         'autostart',
         default_value='true',
         description='Automatically startup the nav2 stack')
+
+    declare_default_bt_xml_cmd = DeclareLaunchArgument(
+        'default_bt_xml_filename',
+        default_value=bt_xml_file,
+        description='Full path to the default Nav2 behavior tree XML file to use')
     
     # Nav2 stack
     nav2_bringup_launch = IncludeLaunchDescription(
@@ -51,6 +58,7 @@ def generate_launch_description():
             'use_sim_time': use_sim_time,
             'autostart': autostart,
             'params_file': nav2_params_file,
+            'default_bt_xml_filename': default_bt_xml_filename,
         }.items()
     )
     
@@ -72,6 +80,7 @@ def generate_launch_description():
     ld.add_action(declare_use_sim_time_cmd)
     ld.add_action(declare_use_rviz_cmd)
     ld.add_action(declare_autostart_cmd)
+    ld.add_action(declare_default_bt_xml_cmd)
     
     # Add nodes
     ld.add_action(nav2_bringup_launch)

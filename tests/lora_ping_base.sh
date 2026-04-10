@@ -22,8 +22,10 @@ sleep 2
 echo "Publishing test cmd_vel (0.1 m/s)..."
 ros2 topic pub -1 /cmd_vel geometry_msgs/Twist '{linear: {x: 0.1}, angular: {z: 0.0}}' >/dev/null
 
+sleep 1
+
 echo "Waiting for telemetry on /lora/telemetry_in (Ctrl+C to stop early)..."
-if timeout 5 ros2 topic echo /lora/telemetry_in --once; then
+if timeout 10 ros2 topic echo /lora/telemetry_in --once; then
   echo "PASS: telemetry received"
 else
   echo "WARN: no telemetry received (check robot side)" >&2

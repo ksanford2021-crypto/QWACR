@@ -29,7 +29,7 @@ This project uses:
 
 | Function | Pin | Mode | Purpose |
 |----------|-----|------|---------|
-| Driver 1 M1SLP (FL) | 28 | Digital Output | Sleep control for FL motor (HIGH=awake, LOW=sleep) |
+| Driver 1 M1SLP (FL) | 37 | Digital Output | Sleep control for FL motor (HIGH=awake, LOW=sleep) |
 | Driver 1 M2SLP (BL) | 29 | Digital Output | Sleep control for BL motor (HIGH=awake, LOW=sleep) |
 | Driver 2 M1SLP (FR) | 30 | Digital Output | Sleep control for FR motor (HIGH=awake, LOW=sleep) |
 | Driver 2 M2SLP (BR) | 31 | Digital Output | Sleep control for BR motor (HIGH=awake, LOW=sleep) |
@@ -51,6 +51,15 @@ These pins control the Pololu Dual G2 motor driver sleep inputs (M1SLP/M2SLP on 
 | Motor BR PWM | 12 | PWM Output | Speed control (0-255) |
 | Motor BR DIR | 5 | Digital Output | Direction (HIGH=forward, LOW=reverse) |
 
+### Motor Driver Current Sense Pins (4 pins)
+
+| Function | Pin | Mode | Purpose |
+|----------|-----|------|---------|
+| Driver 1 M1CS (FL current sense) | A0 | Analog Input | Current sense for Front-Left motor channel on Driver 1 |
+| Driver 1 M2CS (BL current sense) | A1 | Analog Input | Current sense for Back-Left motor channel on Driver 1 |
+| Driver 2 M1CS (FR current sense) | A2 | Analog Input | Current sense for Front-Right motor channel on Driver 2 |
+| Driver 2 M2CS (BR current sense) | A3 | Analog Input | Current sense for Back-Right motor channel on Driver 2 |
+
 ### Encoder Pins (8 pins)
 
 #### Interrupt Pins (Channel A - Both Edges Trigger ISR)
@@ -66,10 +75,10 @@ These pins control the Pololu Dual G2 motor driver sleep inputs (M1SLP/M2SLP on 
 
 | Function | Pin | Mode | Purpose |
 |----------|-----|------|---------|
-| Encoder FL_B | 24 | Digital Input | Front-Left encoder channel B |
-| Encoder BL_B | 25 | Digital Input | Back-Left encoder channel B |
-| Encoder FR_B | 26 | Digital Input | Front-Right encoder channel B |
-| Encoder BR_B | 27 | Digital Input | Back-Right encoder channel B |
+| Encoder FL_B | 41 | Digital Input | Front-Left encoder channel B |
+| Encoder BL_B | 45 | Digital Input | Back-Left encoder channel B |
+| Encoder FR_B | 49 | Digital Input | Front-Right encoder channel B |
+| Encoder BR_B | 53 | Digital Input | Back-Right encoder channel B |
 
 ### Serial Communication (2 pins)
 
@@ -81,7 +90,7 @@ These pins control the Pololu Dual G2 motor driver sleep inputs (M1SLP/M2SLP on 
 ### Unassigned Pins (35 available for expansion)
 
 - Analog: A0-A15 (16 pins)
-- Digital: 4, 13-17, 19, 21-23, 29, 31-53 (19 pins)
+- Digital: 4, 13-17, 19, 21-23, 24-25, 29, 31, 32-40, 42-44, 46-48, 50-52 (28 pins)
 
 ## Why This Configuration?
 
@@ -204,13 +213,13 @@ Pin definitions in `qwacr_main.ino`:
 #define MOTOR_FR_PWM 11
 #define MOTOR_FR_DIR 6
 #define ENCODER_FR_A 20
-#define ENCODER_FR_B 26
+#define ENCODER_FR_B 49
 
 // Motor Back-Right
 #define MOTOR_BR_PWM 12
 #define MOTOR_BR_DIR 5
 #define ENCODER_BR_A 3
-#define ENCODER_BR_B 27
+#define ENCODER_BR_B 53
 ```
 
 ISR Attachment in setup():

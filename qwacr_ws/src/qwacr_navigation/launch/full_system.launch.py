@@ -39,6 +39,7 @@ def generate_launch_description():
     xacro_file = os.path.join(qwacr_build_dir, 'urdf', 'qwacr.urdf.xacro')
     rviz_config_file = os.path.join(qwacr_build_dir, 'launch', 'qwacr_display.rviz')
     nav2_params_file = os.path.join(qwacr_nav_dir, 'config', 'nav2_params.yaml')
+    bt_xml_file = os.path.join(qwacr_nav_dir, 'config', 'qwacr_outdoor_nav.xml')
     controller_config = os.path.join(qwacr_build_dir, 'config', 'diff_drive_controller.yaml')
     ekf_params_file = os.path.join(robot_localization_dir, 'params', 'ekf_local_global.yaml')
     
@@ -52,6 +53,7 @@ def generate_launch_description():
     gps_baud_rate = LaunchConfiguration('gps_baud_rate')
     aurora_ip = LaunchConfiguration('aurora_ip')
     autostart = LaunchConfiguration('autostart')
+    default_bt_xml_filename = LaunchConfiguration('default_bt_xml_filename')
     
     declare_use_sim_time_cmd = DeclareLaunchArgument(
         'use_sim_time',
@@ -97,6 +99,11 @@ def generate_launch_description():
         'autostart',
         default_value='true',
         description='Automatically startup the nav2 stack')
+
+    declare_default_bt_xml_cmd = DeclareLaunchArgument(
+        'default_bt_xml_filename',
+        default_value=bt_xml_file,
+        description='Full path to the default Nav2 behavior tree XML file to use')
     
     # ========================================================================
     # LAYER 1: ROBOT STATE PUBLISHER (URDF/TF Tree)
@@ -223,6 +230,7 @@ def generate_launch_description():
             'use_sim_time': use_sim_time,
             'autostart': autostart,
             'params_file': nav2_params_file,
+            'default_bt_xml_filename': default_bt_xml_filename,
         }.items()
     )
     
@@ -256,6 +264,7 @@ def generate_launch_description():
     ld.add_action(declare_gps_baud_rate_cmd)
     ld.add_action(declare_aurora_ip_cmd)
     ld.add_action(declare_autostart_cmd)
+    ld.add_action(declare_default_bt_xml_cmd)
     
     # Add nodes in order
     # Layer 1: Robot description

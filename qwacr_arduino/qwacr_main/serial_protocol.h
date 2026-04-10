@@ -23,7 +23,7 @@ struct Command {
   double vel_right;    // rad/s for right motors (FR + BR)
 };
 
-// Feedback structure to ROS 2
+// Feedback structure to ROS 2 (layout in binary packet is fixed below)
 struct Feedback {
   long encoder_fl;
   long encoder_bl;
@@ -33,6 +33,10 @@ struct Feedback {
   double velocity_bl;
   double velocity_fr;
   double velocity_br;
+  double current_fl;
+  double current_bl;
+  double current_fr;
+  double current_br;
 };
 
 class SerialProtocol {
@@ -112,11 +116,12 @@ public:
   }
   
   // Send feedback packet to serial
-  // Format: [TYPE][enc_fl][enc_bl][enc_fr][enc_br][vel_fl][vel_bl][vel_fr][vel_br]
+  // Format: [TYPE][enc_fl][enc_bl][enc_fr][enc_br][vel_fl][vel_bl][vel_fr][vel_br][cur_fl][cur_bl][cur_fr][cur_br]
   void sendFeedback(HardwareSerial& serial, 
                     long encoder_fl, long encoder_bl, long encoder_fr, long encoder_br,
-                    double velocity_fl, double velocity_bl, double velocity_fr, double velocity_br) {
-    byte buffer[33];  // 1 type + 16 bytes encoders + 16 bytes velocities
+                    double velocity_fl, double velocity_bl, double velocity_fr, double velocity_br,
+                    double current_fl, double current_bl, double current_fr, double current_br) {
+    byte buffer[49];  // 1 type + 16 bytes encoders + 16 bytes velocities + 16 bytes currents
     int idx = 0;
     
     buffer[idx++] = FEEDBACK_DATA;
@@ -137,6 +142,17 @@ public:
     memcpy(&buffer[idx], &vel_bl_f, 4); idx += 4;
     memcpy(&buffer[idx], &vel_fr_f, 4); idx += 4;
     memcpy(&buffer[idx], &vel_br_f, 4); idx += 4;
+
+    // Currents (4 bytes each as float, in amps)
+    float cur_fl_f = (float)current_fl;
+    float cur_bl_f = (float)current_bl;
+    float cur_fr_f = (float)current_fr;
+    float cur_br_f = (float)current_br;
+
+    memcpy(&buffer[idx], &cur_fl_f, 4); idx += 4;
+    memcpy(&buffer[idx], &cur_bl_f, 4); idx += 4;
+    memcpy(&buffer[idx], &cur_fr_f, 4); idx += 4;
+    memcpy(&buffer[idx], &cur_br_f, 4); idx += 4;
     
     packetSerial.send(buffer, idx);
   }

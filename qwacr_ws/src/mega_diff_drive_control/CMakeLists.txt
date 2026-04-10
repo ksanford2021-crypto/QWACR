@@ -17,9 +17,15 @@ find_package(nav_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(geometry_msgs REQUIRED)
 
-# Manual path for libserial
-set(LibSerial_INCLUDE_DIRS "/usr/local/include")
-set(LibSerial_LIBRARIES "/usr/local/lib/libserial.so")
+# Find libserial via pkg-config (works for both apt and source installs)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(LibSerial REQUIRED libserial)
+
+# Fallback: if pkg-config didn't set LIBRARIES, find it manually
+if(NOT LibSerial_LIBRARIES)
+  find_library(LibSerial_LIBRARIES NAMES serial
+    PATHS /usr/local/lib /usr/lib /usr/lib/aarch64-linux-gnu /usr/lib/x86_64-linux-gnu)
+endif()
 
 add_library(mega_diff_drive_hardware SHARED
   src/mega_diff_drive_hardware.cpp

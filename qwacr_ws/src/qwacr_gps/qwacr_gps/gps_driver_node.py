@@ -28,12 +28,28 @@ class GPSDriverNode(Node):
         self.declare_parameter('publish_heading', True)
         self.declare_parameter('origin_lat', 0.0)  # Set on first fix if 0
         self.declare_parameter('origin_lon', 0.0)
+        self.declare_parameter('navsat_cov_gps_m2', 25.0)
+        self.declare_parameter('navsat_cov_dgps_m2', 4.0)
+        self.declare_parameter('navsat_cov_no_fix_m2', 10000.0)
+        self.declare_parameter('enu_pos_stddev_m', 2.0)
+        self.declare_parameter('enu_z_stddev_m', 3.0)
+        self.declare_parameter('enu_vel_stddev_mps', 0.5)
+        self.declare_parameter('heading_stddev_deg', 8.0)
+        self.declare_parameter('apply_heading_offset_deg', 0.0)
         
         self.serial_port = self.get_parameter('serial_port').value
         self.baud_rate = self.get_parameter('baud_rate').value
         self.frame_id = self.get_parameter('frame_id').value
         self.publish_enu = self.get_parameter('publish_enu').value
         self.publish_heading = self.get_parameter('publish_heading').value
+        self.navsat_cov_gps_m2 = float(self.get_parameter('navsat_cov_gps_m2').value)
+        self.navsat_cov_dgps_m2 = float(self.get_parameter('navsat_cov_dgps_m2').value)
+        self.navsat_cov_no_fix_m2 = float(self.get_parameter('navsat_cov_no_fix_m2').value)
+        self.enu_pos_stddev_m = float(self.get_parameter('enu_pos_stddev_m').value)
+        self.enu_z_stddev_m = float(self.get_parameter('enu_z_stddev_m').value)
+        self.enu_vel_stddev_mps = float(self.get_parameter('enu_vel_stddev_mps').value)
+        self.heading_stddev_deg = float(self.get_parameter('heading_stddev_deg').value)
+        self.apply_heading_offset_deg = float(self.get_parameter('apply_heading_offset_deg').value)
         
         # Publishers
         self.navsat_pub = self.create_publisher(NavSatFix, '/fix', 10)
@@ -142,13 +158,13 @@ class GPSDriverNode(Node):
             msg.status.status = NavSatStatus.STATUS_FIX if fix_quality > 0 else NavSatStatus.STATUS_NO_FIX
             msg.status.service = NavSatStatus.SERVICE_GPS
             
-            # Covariance (rough estimate based on fix type)
+            # Covariance based on fix type (non-RTK defaults, parameterized)
             if fix_quality == 2:  # DGPS
-                cov = 1.0  # ~1m accuracy
+                cov = self.navsat_cov_dgps_m2
             elif fix_quality == 1:  # GPS
-                cov = 5.0  # ~5m accuracy
+                cov = self.navsat_cov_gps_m2
             else:
-                cov = 100.0  # No fix
+                cov = self.navsat_cov_no_fix_m2
             
             msg.position_covariance = [cov, 0, 0, 0, cov, 0, 0, 0, cov]
             msg.position_covariance_type = NavSatFix.COVARIANCE_TYPE_APPROXIMATED
@@ -236,6 +252,7 @@ class GPSDriverNode(Node):
                     if heading_deg < 0:
                         heading_deg += 360
                     
+                    heading_deg = (heading_deg + self.apply_heading_offset_deg) % 360.0
                     self.latest_heading_deg = heading_deg
                     if self.publish_heading and self.heading_pub:
                         msg = Float64()
@@ -348,21 +365,19 @@ class GPSDriverNode(Node):
             odom_msg.twist.twist.linear.y = self.latest_speed_mps * math.cos(course_rad)
             odom_msg.twist.twist.linear.z = 0.0
         
-        # Set covariances (rough estimates for RTK GPS)
-        # Position covariance (RTK can be cm-level accurate)
-        pos_cov = 0.01  # 1cm standard deviation for RTK
-        odom_msg.pose.covariance[0] = pos_cov    # x
-        odom_msg.pose.covariance[7] = pos_cov    # y
-        odom_msg.pose.covariance[14] = pos_cov   # z
-        
-        # Heading covariance (dual-antenna can be <1 degree)
-        heading_cov = math.radians(0.5) ** 2  # 0.5 degree standard deviation
+        # Set covariances (defaults tuned for non-RTK operation)
+        pos_var_xy = self.enu_pos_stddev_m ** 2
+        pos_var_z = self.enu_z_stddev_m ** 2
+        odom_msg.pose.covariance[0] = pos_var_xy    # x
+        odom_msg.pose.covariance[7] = pos_var_xy    # y
+        odom_msg.pose.covariance[14] = pos_var_z    # z
+
+        heading_cov = math.radians(self.heading_stddev_deg) ** 2
         odom_msg.pose.covariance[35] = heading_cov  # yaw
-        
-        # Velocity covariance
-        vel_cov = 0.1  # 0.1 m/s standard deviation
-        odom_msg.twist.covariance[0] = vel_cov   # vx
-        odom_msg.twist.covariance[7] = vel_cov   # vy
+
+        vel_var = self.enu_vel_stddev_mps ** 2
+        odom_msg.twist.covariance[0] = vel_var   # vx
+        odom_msg.twist.covariance[7] = vel_var   # vy
         
         return odom_msg
     

@@ -98,7 +98,12 @@ def generate_launch_description():
         package='tf2_ros',
         executable='static_transform_publisher',
         name='base_to_imu',
-        arguments=['0.0', '0.0', '0.15', '0', '0', '0', 'base_link', 'imu'],
+        # IMU mounting: +Y forward, -Z down (sensor upside-down in Z).
+        # Base frame follows REP-103 (+X forward, +Y left, +Z up).
+        # We first rotate +90 deg about Z (yaw = +pi/2) so IMU +Y aligns with base +X,
+        # then rotate 180 deg about X (roll = +pi) so IMU -Z becomes base +Z.
+        # Combined roll-pitch-yaw (rpy) ≈ (pi, 0, pi/2).
+        arguments=['0.0', '0.0', '0.15', '3.1416', '0', '1.5708', 'base_link', 'imu_link'],
         parameters=[{'use_sim_time': use_sim_time}],
     )
     

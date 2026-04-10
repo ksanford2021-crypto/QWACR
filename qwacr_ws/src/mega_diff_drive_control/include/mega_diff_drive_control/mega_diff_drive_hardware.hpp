@@ -46,6 +46,20 @@ namespace mega_diff_drive_control
         std::vector<double> hw_positions_;     // 4 wheel positions (radians)
         std::vector<double> hw_velocities_;    // 4 wheel velocities (rad/s)
 
+        // Previous positions for computing wheel velocities on the ROS side
+        // (we ignore Arduino-reported velocities and differentiate encoder
+        // positions instead for smoother and more consistent data).
+        std::vector<double> last_hw_positions_;
+        std::chrono::steady_clock::time_point last_velocity_time_;
+        bool velocity_initialized_ = false;
+
+        // Joint index mapping (resolved from joint names in on_init)
+        // These indices refer into hw_commands_, hw_positions_, and hw_velocities_.
+        std::size_t idx_fl_ = 0;  // front-left
+        std::size_t idx_fr_ = 1;  // front-right
+        std::size_t idx_bl_ = 2;  // back-left
+        std::size_t idx_br_ = 3;  // back-right
+
         // Odometry state
         double odom_x_ = 0.0;      // meters
         double odom_y_ = 0.0;      // meters

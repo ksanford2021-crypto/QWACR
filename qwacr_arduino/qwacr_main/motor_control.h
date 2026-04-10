@@ -27,6 +27,9 @@ private:
   
   // Feedforward gain (PWM per rad/s)
   double feedforward_gain;
+
+  // Output scaling factor for current limiting (0.0 - 1.0)
+  double output_scale;
   
   // PID controller object
   PID* pid_controller;
@@ -45,6 +48,7 @@ public:
     : pwm_pin(pwm), dir_pin(dir), counts_per_rev(cpr),
       setpoint(0), input(0), output(0), current_velocity(0),
       feedforward_gain(kff),
+      output_scale(1.0),
       last_update_time(0), last_encoder_count(0), last_velocity_calc_time(0) {
     
     // Initialize PID controller
@@ -167,15 +171,33 @@ public:
     return output;
   }
 
+  // Set output scaling factor for current limiting (clamped between 0 and 1)
+  void setOutputScale(double scale) {
+    if (scale < 0.0) scale = 0.0;
+    if (scale > 1.0) scale = 1.0;
+    output_scale = scale;
+  }
+
 private:
   // Apply PID output to motor (direction and PWM)
   void applyMotorOutput(double pwm_value) {
+    // Apply current limiting scale factor
+    pwm_value *= output_scale;
+    double mag = fabs(pwm_value);
+
+    // If there is a non-zero command but it's below the effective friction threshold,
+    // bump it up to a minimum useful PWM level to avoid sitting in a low-torque,
+    // high-heat region.
+    if (mag > 0.0 && mag < MIN_PWM_THRESHOLD) {
+      mag = MIN_PWM_THRESHOLD;
+    }
+
     if (pwm_value >= 0) {
       digitalWrite(dir_pin, HIGH);  // Forward
-      analogWrite(pwm_pin, (int)constrain(pwm_value, 0, MAX_PWM));
+      analogWrite(pwm_pin, (int)constrain(mag, 0, MAX_PWM));
     } else {
       digitalWrite(dir_pin, LOW);   // Reverse
-      analogWrite(pwm_pin, (int)constrain(-pwm_value, 0, MAX_PWM));
+      analogWrite(pwm_pin, (int)constrain(mag, 0, MAX_PWM));
     }
   }
 };
